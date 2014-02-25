@@ -20,7 +20,8 @@ setup(
         'Programming Language :: Python :: 3',
     ],
     keywords=[],
-    py_modules=[],
     packages=['dragonmasher'],
+    package_data={'dragonmasher': ['data/*.csv']},
     test_suite='dragonmasher.tests',
+    install_requires=['zhon>=1.0', 'ticktock', 'fcache>=0.4'],
 )
