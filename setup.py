@@ -23,5 +23,5 @@ setup(
     packages=['dragonmasher'],
     package_data={'dragonmasher': ['data/*.csv']},
     test_suite='dragonmasher.tests',
-    install_requires=['zhon>=1.0', 'ticktock', 'fcache>=0.4'],
+    install_requires=['zhon>=1.0', 'ticktock', 'fcache>=0.4.2'],
 )
