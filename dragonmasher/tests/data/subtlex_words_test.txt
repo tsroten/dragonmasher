@@ -1,0 +1,5 @@
+Word	Length	Pinyin	Pinyin.Input	WCount	W.million	log10W	W-CD	W-CD%	log10CD	Dominant.PoS	Dominant.PoS.Freq	All.PoS	All.PoS.Freq	Eng.Tran.
+的	1	de5/di2/di4	de	1682530	50155.13	6.226	6243	100	3.7954	u	1682369	.u.n.	.1682369.161.	"of/structural particle: used before a noun, linking it to preceding possessive or descriptive attributive; really and truly; aim/clear"
+我	1	wo3	wo	1682285	50147.83	6.2259	6242	99.98	3.7953	r	1682285	.r.	.1682285.	I/me/my
+你	1	ni3	ni	1329424	39629.27	6.1237	6242	99.98	3.7953	r	1329424	.r.	.1329424.	"you (informal, as opposed to polite 您[nin2])"
+是	1	shi4	shi	947807	28253.52	5.9767	6243	100	3.7954	v	947807	.v.	.947807.	is/are/am/yes/to be
