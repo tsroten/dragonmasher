@@ -33,7 +33,7 @@ class BaseSource(object):
     def __init__(self, encoding=DEFAULT_ENCODING):
         self.files = self.files if hasattr(self, 'files') else None
         self.whitelist = self.whitelist if hasattr(self, 'whitelist') else None
-        self.data = {} if not hasattr(self, 'data') else self.data
+        self.data = self.data if hasattr(self, 'data') else {}
         self.encoding = encoding
         self.key_prefix = self.name + '-'
 
@@ -44,10 +44,6 @@ class BaseSource(object):
 
 class BaseLocalSource(BaseSource):
     """Base class for local Chinese data sources."""
-
-    def __init__(self, encoding=DEFAULT_ENCODING):
-        super(BaseLocalSource, self).__init__(encoding=encoding)
-        self.data = {}
 
     def read(self):
         """Reads and processes the data, then stores data in self.data."""
@@ -69,10 +65,10 @@ class BaseRemoteSource(BaseSource):
     def __init__(self, cache_data=True, cache_name='dragonmasher',
                  timeout=DEFAULT_TIMEOUT, encoding=DEFAULT_ENCODING):
         """Opens and reads cache data."""
-        super(BaseRemoteSource, self).__init__(encoding=encoding)
         self.cache_data = cache_data
         if self.cache_data:
             self._init_cache(cache_name, timeout)
+        super(BaseRemoteSource, self).__init__(encoding=encoding)
 
     def _init_cache(self, cache_name, timeout):
         """Opens a cache for the processed source data."""
@@ -84,6 +80,7 @@ class BaseRemoteSource(BaseSource):
         """Deletes the cached data."""
         del self.cache[self.name]
         self.cache.sync()
+        self.data = self.cache.setdefault(self.name, {})
 
     @property
     def has_data(self):
@@ -127,19 +124,19 @@ class BaseRemoteSource(BaseSource):
             return self
         elif not self.has_files:
             raise OSError("Download was not successful, no files to read.")
-        for each in self.files:
-            rel_fname = os.path.basename(each)
+        for fname in self.files:
+            rel_fname = os.path.basename(fname)
             if (self.whitelist is not None and
                     rel_fname not in self.whitelist):
                 logger.debug("Ignoring file: '%s'." % rel_fname)
                 continue
-            logger.debug("Opening file for reading: '%s'." % each)
-            with open(each, 'r', encoding=self.encoding) as f:
+            logger.debug("Opening file for reading: '%s'." % fname)
+            with open(fname, 'r', encoding=self.encoding) as f:
                 contents = f.read()
-                logger.debug("Processing file: '%s'." % each)
-                self._read_file(each, contents)
+                logger.debug("Processing file: '%s'." % fname)
+                self._read_file(fname, contents)
         if self.cache_data:
-            logger.debug("Writing processed data to a file-based cache.")
+            logger.debug("Writing processed data to cache.")
             self.cache.sync()
         self._cleanup()
         return self
@@ -168,7 +165,7 @@ class BaseRemoteArchiveSource(BaseRemoteSource):
         ReadError is raised when an archive cannot be read.
 
         """
-        if not hasattr(self, 'files'):
+        if not self.has_files:
             raise OSError("Download was not successful, no files to extract.")
         logger.debug("Unpacking archive file: '%s'." % self.files[0])
         unpack_archive(self.files[0], self.temp_dir)
@@ -201,33 +198,25 @@ class CSVMixin(object):
 class HSK(CSVMixin, BaseLocalSource):
     """A class for reading local HSK data."""
 
-    def __init__(self, index_column=0):
-        self.files = ('data/hsk.csv',)
-        self.headers = ('word', 'level')
-        self.name = 'HSK'
-        super(HSK, self).__init__(index_column=index_column, encoding='utf-8')
+    name = 'HSK'
+    files = ('data/hsk.csv',)
+    headers = ('word', 'level')
 
 
 class TOCFL(CSVMixin, BaseLocalSource):
     """A class for reading local TOCFL data."""
 
-    def __init__(self, index_column=0):
-        self.files = ('data/tocfl.csv',)
-        self.headers = ('word', 'level', 'pos', 'category')
-        self.name = 'TOCFL'
-        super(TOCFL, self).__init__(index_column=index_column,
-                                    encoding='utf-8')
+    name = 'TOCFL'
+    files = ('data/tocfl.csv',)
+    headers = ('word', 'level', 'pos', 'category')
 
 
 class XianDaiChangYongZi(CSVMixin, BaseLocalSource):
     """A class for reading local XianDaiChangYongZi data."""
 
-    def __init__(self, index_column=0):
-        self.files = ('data/xdcyz.csv',)
-        self.headers = ('character', 'level', 'strokes')
-        self.name = 'XDCYZ'
-        super(XianDaiChangYongZi, self).__init__(index_column=index_column,
-                                                 encoding='utf-8')
+    name = 'XDCYZ'
+    files = ('data/xdcyz.csv',)
+    headers = ('character', 'level', 'strokes')
 
 
 class SUBTLEX(BaseRemoteArchiveSource):
