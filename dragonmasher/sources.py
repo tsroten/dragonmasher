@@ -53,6 +53,7 @@ class BaseLocalSource(BaseSource):
                                         name).decode(self.encoding)
             logger.debug("Processing file: '%s'." % name)
             self._read_file(name, contents)
+        return self
 
     def _read_file(self, name, contents):
         """Processes and stores the file contents into self.data."""
