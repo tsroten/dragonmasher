@@ -23,52 +23,155 @@ from dragonmasher.unpack import unpack_archive
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_ENCODING = 'utf-8'
+PACKAGE = __name__.rpartition('.')[0]
+
+#: The default timeout value for cached data (in seconds).
 DEFAULT_TIMEOUT = 12096000
 
 
 class BaseSource(object):
     """Base class for Chinese data sources."""
 
-    def __init__(self, encoding=DEFAULT_ENCODING):
-        self.files = self.files if hasattr(self, 'files') else None
-        self.whitelist = self.whitelist if hasattr(self, 'whitelist') else None
+    def __init__(self, encoding='utf-8'):
+        """Sets up instance variables.
+
+        :param str encoding: The file encoding to use when opening the source's
+            files.
+
+        """
+        #: A dictionary containing the processed source data.
         self.data = self.data if hasattr(self, 'data') else {}
+
+        #: The file encoding to use when opening the source's files.
         self.encoding = encoding
-        self.key_prefix = self.name + '-'
+
+        #: A tuple containing the paths to the source's files.
+        self.files = self.files if hasattr(self, 'files') else None
+
+        #: A string containing the name/abbreviation for this source.
+        self.name = self.name if hasattr(self, 'name') else None
+
+        super(BaseSource, self).__init__()
+
+    @property
+    def key_prefix(self):
+        """A string that is prefixed to the source's data keys."""
+        return self.name + '-'
 
     def read(self):
-        """Reads and processes the data, then stores data in self.data."""
+        """Reads and processes the source's files.
+
+        The processed data is stored in :attr:`data`.
+
+        For each file to be read and processed, this method calls
+        :meth:`read_file` and :meth:`process_file`.
+
+        """
+        for filename in self.files:
+            contents = self.read_file(filename)
+            if contents is not None:
+                data = self.process_file(filename, contents)
+                self.data.update(data)
+
+    def read_file(self, filename):
+        """Reads a source file's contents.
+
+        .. NOTE:: This method is not implemented in this class and should be
+            implemented in child classes.
+
+        :param str filename: The filename of the file to be read.
+        :return: The file's contents.
+        :rtype: :class:`str`
+
+        """
+        raise NotImplemented
+
+    def process_file(self, filename, contents):
+        """Processes a source file's contents.
+
+        .. NOTE:: This method is not implemented in this class and should be
+            implemented in child classes.
+
+        :param str filename: The filename of the file to be processed.
+        :param str contents: The contents to be processed.
+        :return: The processed data.
+        :rtype: :class:`dict`
+
+        """
         raise NotImplemented
 
 
 class BaseLocalSource(BaseSource):
     """Base class for local Chinese data sources."""
 
-    def read(self):
-        """Reads and processes the data, then stores data in self.data."""
-        for name in self.files:
-            logger.debug("Opening file for reading: '%s'." % name)
-            contents = pkgutil.get_data('dragonmasher',
-                                        name).decode(self.encoding)
-            logger.debug("Processing file: '%s'." % name)
-            self._read_file(name, contents)
-        return self
+    def read_file(self, filename):
+        """Reads a source file's contents.
 
-    def _read_file(self, name, contents):
-        """Processes and stores the file contents into self.data."""
-        raise NotImplemented
+        :param str filename: The filename of the file to be read.
+        :return: The file's contents.
+        :rtype: :class:`str`
+
+        """
+        logger.debug("Opening file for reading: '%s'." % filename)
+        with open(filename, 'r') as f:
+            return f.read()
+
+
+class BasePackageResourceSource(BaseLocalSource):
+    """Base class for Chinese data sources that are package resources."""
+
+    def read_file(self, resource):
+        """Reads a package resource's contents.
+
+        :param str resource: The relative filename of the resource.
+        :return: The resource's contents.
+        :rtype: :class:`str`
+
+        """
+        logger.debug("Opening package resource for reading: '%s'." % resource)
+        return pkgutil.get_data(PACKAGE, resource).decode(self.encoding)
 
 
 class BaseRemoteSource(BaseSource):
-    """Base class for remote Chinese data sources."""
+    """Base class for remote Chinese data sources.
+
+    This class is designed to work with plaintext data sources (i.e. source
+    files that are not packed in an archive file like ZIP or tar).
+
+    """
 
     def __init__(self, cache_data=True, cache_name='dragonmasher',
-                 timeout=DEFAULT_TIMEOUT, encoding=DEFAULT_ENCODING):
-        """Opens and reads cache data."""
+                 timeout=DEFAULT_TIMEOUT, encoding='utf-8'):
+        """Sets up caching for remote data sources.
+
+        If *cache_data* is ``True``, the processed source data will be stored
+        in a file cache so calls to :meth:`download` and :meth:`read` via
+        future instances can be ignored. The cache is associated with the
+        *cache_name*. The cached data is retained for *timeout* number of
+        seconds (defaults to the module-level constant
+        :data:`DEFAULT_TIMEOUT`). If *cache_data* is ``False``, then the
+        processed data is only stored in memory -- future instances will
+        need to redownload and reprocess the data.
+
+        :param bool cache_data: Whether or not to cache the processed data
+            (defaults to ``True``).
+        :param str cache_name: The cache's name (defaults to
+            ``'dragonmasher'``).
+        :param int timeout: How long in seconds until the cached data expires
+            (defaults to :data:`DEFAULT_TIMEOUT`).
+        :param str encoding: The file encoding to use when opening the source's
+            files.
+
+        """
+        #: A boolean value indicating whether or not to cache processed data.
         self.cache_data = cache_data
+
+        #: A string indicating the path to this instance's temporary directory.
+        self.temp_dir = None
+
         if self.cache_data:
             self._init_cache(cache_name, timeout)
+
         super(BaseRemoteSource, self).__init__(encoding=encoding)
 
     def _init_cache(self, cache_name, timeout):
@@ -85,22 +188,47 @@ class BaseRemoteSource(BaseSource):
 
     @property
     def has_data(self):
-        """Checks if the source data is already processed or not."""
+        """Boolean value indicating if the source data is already processed."""
         return bool(self.data)
 
     @property
     def has_files(self):
-        """Checks if the source files are downloaded already or not."""
+        """Boolean value indicating if the source object has local files.
+
+        This is useful to determine if the source's files have been already
+        been downloaded/extracted. Once the files have been processed, they are
+        deleted and this value is ``False``.
+
+        """
         return bool(self.files)
 
     def download(self, force_download=False, filename=None):
-        """Download the file and save it to a temporary directory."""
+        """Downloads the source data and saves it to a temporary directory.
+
+        The temporary directory's path is accessible through
+        :attr:`temp_dir`.
+
+        :attr:`files` is set to a tuple containing the absolute filename
+        of the file downloaded.
+
+        If *force_download* is ``True``, then downloaded files and cached data
+        will be deleted and the source data will be downloaded again. If
+        *force_download* is ``False``, then the download will be cancelled if
+        the files have already been downloaded or the processed data has been
+        cached.
+
+        :param bool force_download: Whether or not to download the source files
+            even if the data is cached.
+        :param str filename: A filename to use when downloading the source's
+            files.
+
+        """
         if self.has_data and not force_download:
             logger.info("Source has cached data. Cancelling download.")
-            return self
+            return
         elif self.has_files and not force_download:
             logger.info("Source has unprocessed files. Cancelling download.")
-            return self
+            return
         if force_download:
             self._reset_cache()
         url = self.download_url
@@ -110,9 +238,9 @@ class BaseRemoteSource(BaseSource):
         abs_fname = os.path.join(self.temp_dir, rel_fname)
         self._download(url, abs_fname)
         self.files = (abs_fname,)
-        return self
 
     def _download(self, url, filename):
+        """Opens *url* and saves it to *filename*."""
         logger.debug("Opening the URL: '%s'." % url)
         with contextlib.closing(urlopen(self.download_url)) as page:
             with open(filename, 'wb') as f:
@@ -120,50 +248,89 @@ class BaseRemoteSource(BaseSource):
                 f.write(page.read())
 
     def read(self):
-        """Reads and processes the data, then stores data in self.data."""
+        """Reads and processes the source's files.
+
+        The processed data is stored in :attr:`data`.
+
+        For each file to be read and processed, this method calls
+        :meth:`read_file` and :meth:`process_file`.
+
+        """
         if self.has_data:
-            return self
+            return
         elif not self.has_files:
             raise OSError("Download was not successful, no files to read.")
-        for fname in self.files:
-            rel_fname = os.path.basename(fname)
-            if (self.whitelist is not None and
-                    rel_fname not in self.whitelist):
-                logger.debug("Ignoring file: '%s'." % rel_fname)
-                continue
-            logger.debug("Opening file for reading: '%s'." % fname)
-            with open(fname, 'r', encoding=self.encoding) as f:
-                contents = f.read()
-                logger.debug("Processing file: '%s'." % fname)
-                self._read_file(fname, contents)
+
+        super(BaseRemoteSource, self).read()
+
         if self.cache_data:
             logger.debug("Writing processed data to cache.")
             self.cache.sync()
+
         self._cleanup()
-        return self
+
+    def read_file(self, filename):
+        """Reads a source file's contents.
+
+        :param str filename: The filename of the file to be read.
+        :return: The resource's contents (:data:`None` if no contents are to be
+            retured, e.g. the file was ignored).
+        :rtype: :class:`str` or :data:`None`
+
+        """
+        logger.debug("Opening file for reading: '%s'." % filename)
+        with open(filename, 'r', encoding=self.encoding) as f:
+            return f.read()
 
     def _cleanup(self):
+        """Deletes downloaded files and the temporary directory."""
         logger.debug("Cleaning up temporary files.")
         shutil.rmtree(self.temp_dir)
-        del self.temp_dir
+        self.temp_dir = None
         self.files = None
 
 
 class BaseRemoteArchiveSource(BaseRemoteSource):
     """Base class for remote archive Chinese data sources."""
 
+    #: A tuple containing names of files that should be processed. If
+    #: empty, then all files are processed.
+    whitelist = ()
+
     def download(self, force_download=False, filename=None):
-        """Download the file and save it to a temporary directory."""
+        """Downloads the source data and saves it to a temporary directory.
+
+        The temporary directory's path is accessible through
+        :attr:`temp_dir`.
+
+        After downloading the source archive, the contents are then extracted.
+        :attr:`files` is set to a tuple containing the absolute filenames
+        of the files extracted.
+
+        If *force_download* is ``True``, then downloaded files and cached data
+        will be deleted and the source data will be downloaded again. If
+        *force_download* is ``False``, then the download will be cancelled if
+        the files have already been downloaded or the processed data has been
+        cached.
+
+        :param bool force_download: Whether or not to download the source files
+            even if the data is cached.
+        :param str filename: A filename to use when downloading the source's
+            files.
+
+        """
+        super(BaseRemoteArchiveSource, self).download(force_download, filename)
         if self.has_data and not force_download:
             return self
-        super(BaseRemoteArchiveSource, self).download(force_download, filename)
-        self._extract()
-        return self
+        self.extract()
 
-    def _extract(self):
-        """Extract the contents of the archive file.
+    def extract(self):
+        """Extracts the contents of the archive file.
 
-        ReadError is raised when an archive cannot be read.
+        This method is called automatically by :meth:`download`.
+
+        :exc:`dragonmasher.unpack.ReadError` is raised when an archive
+        cannot be read.
 
         """
         if not self.has_files:
@@ -174,77 +341,264 @@ class BaseRemoteArchiveSource(BaseRemoteSource):
         _files = os.listdir(self.temp_dir)
         self.files = tuple([os.path.join(self.temp_dir, f) for f in _files])
 
+    def read_file(self, filename):
+        """Reads a source file's contents.
+
+        :param str filename: The filename of the file to be read.
+        :return: The resource's contents (:data:`None` if no contents are to be
+            retured, e.g. the file was ignored).
+        :rtype: :class:`str` or :data:`None`
+
+        """
+        basename = os.path.basename(filename)
+        if len(self.whitelist) > 0 and basename not in self.whitelist:
+            logger.debug("Ignoring file: '%s'." % filename)
+            return None
+        logger.debug("Opening file for reading: '%s'." % filename)
+        with open(filename, 'r', encoding=self.encoding) as f:
+            return f.read()
+
 
 class CSVMixin(object):
-    """A mixin class that reads CSV data directly into the source class."""
+    """A mixin that processes simple CSV data.
 
-    def __init__(self, index_column=0, **kwargs):
-        super(CSVMixin, self).__init__(**kwargs)
-        self.index_column = index_column
+    This mixin implements the required :meth:`process_file` method for Chinese
+    data source classes.
 
-    def _read_file(self, name, contents):
-        """Processes and stores the file contents into self.data."""
+    The ``headers`` attribute should be defined by child classes and is used
+    to create dictionary keys (each header is prepended with
+    :data:`BaseSource.key_prefix`). The values are read directly from each
+    column of the CSV file.
+
+    :data:`index_column` defaults to ``0``, but should be overridden by child
+    classes if a different index column value is needed.
+
+    See :class:`HSK`, :class:`TOCFL`, :class:`XianDaiChangYongZi`, or
+    :class:`SUBTLEX` for an example of how to use this mixin.
+
+    """
+
+    #: A tuple containing the CSV file's header.
+    headers = ()
+
+    #: The column number to use as a dictionary key when processing the data
+    #: (counting from zero).
+    index_column = 0
+
+    def process_file(self, filename, contents, delimiter=',', comments=('#',),
+                     exclude=()):
+        """Processes a CSV file's contents.
+
+        :param str filename: The filename of the file to be processed.
+        :param str contents: The contents to be processed.
+        :param str delimiter: The field delimiter (defaults to ``','``).
+        :param tuple comments: A sequence of one-character strings that are
+            used to designate a line as a comment (defaults to ``('#',)``.
+        :param tuple exclude: A sequence of column numbers to exclude from the
+            data (counting from zero).
+        :return: The processed data.
+        :rtype: :class:`dict`
+
+        """
+        excluded_columns = sorted(exclude + (self.index_column,), reverse=True)
+
+        def trim_row(row):
+            """Removes unwanted fields from a list (in-place)."""
+            for column in excluded_columns:
+                del row[column]
+
+        logger.debug("Processing file: '%s'." % filename)
+        data = {}
         headers = list(self.headers)
-        del headers[self.index_column]
+        trim_row(headers)
         for line in contents.splitlines():
-            if line[0] == '#':
+            if line[0] in comments:
                 continue  # Skip all comments.
-            row = line.split(',')
-            key = row.pop(self.index_column)
+            row = line.split(delimiter)
+            key = row[self.index_column]
+            trim_row(row)
             value = dict(zip([self.key_prefix + h for h in headers], row))
-            self.data.setdefault(key, {})
-            self.data[key].update(value)
+            data.setdefault(key, {})
+            data[key].update(value)
+        return data
 
 
-class HSK(CSVMixin, BaseLocalSource):
-    """A class for reading local HSK data."""
+class HSK(CSVMixin, BasePackageResourceSource):
+    """A class for reading local HSK data.
 
-    name = 'HSK'
+    See parent classes :class:`CSVMixin` and :class:`BasePackageResourceSource`
+    for more information.
+
+    """
+
+    #: A tuple containing this source's package resource name.
     files = ('data/hsk.csv',)
+
+    #: A tuple containing the CSV file's header.
     headers = ('word', 'level')
 
+    #: A unique name/abbreviation for this source.
+    name = 'HSK'
 
-class TOCFL(CSVMixin, BaseLocalSource):
-    """A class for reading local TOCFL data."""
+    def __init__(self):
+        super(HSK, self).__init__(encoding='utf-8')
 
-    name = 'TOCFL'
+    def read(self):
+        """Reads and processes the HSK data file.
+
+        The processed data is stored in :attr:`HSK.data`.
+
+        """
+        super(HSK, self).read()
+
+
+class TOCFL(CSVMixin, BasePackageResourceSource):
+    """A class for reading local TOCFL data.
+
+    See parent classes :class:`CSVMixin` and :class:`BasePackageResourceSource`
+    for more information.
+
+    """
+
+    #: A tuple containing this source's filenames.
     files = ('data/tocfl.csv',)
+
+    #: A tuple containing the CSV file's header.
     headers = ('word', 'level', 'pos', 'category')
 
+    #: A unique name/abbreviation for this source.
+    name = 'TOCFL'
 
-class XianDaiChangYongZi(CSVMixin, BaseLocalSource):
-    """A class for reading local XianDaiChangYongZi data."""
+    def __init__(self):
+        super(TOCFL, self).__init__(encoding='utf-8')
 
-    name = 'XDCYZ'
+    def read(self):
+        """Reads and processes the TOCFL data file.
+
+        The processed data is stored in :attr:`TOCFL.data`.
+
+        """
+        super(TOCFL, self).read()
+
+
+class XianDaiChangYongZi(CSVMixin, BasePackageResourceSource):
+    """A class for reading local XianDaiChangYongZi data.
+
+    See parent classes :class:`CSVMixin` and :class:`BasePackageResourceSource`
+    for more information.
+
+    """
+
+    #: A tuple containing this source's filenames.
     files = ('data/xdcyz.csv',)
+
+    #: A tuple containing the CSV file's header.
     headers = ('character', 'level', 'strokes')
 
+    #: A unique name/abbreviation for this source.
+    name = 'XDCYZ'
 
-class SUBTLEX(BaseRemoteArchiveSource):
-    """A class for downloading and reading remote SUBTLEX data."""
+    def __init__(self):
+        super(XianDaiChangYongZi, self).__init__(encoding='utf-8')
 
+    def read(self):
+        """Reads and processes the XianDaiChangYongZi data file.
+
+        The processed data is stored in :attr:`XianDaiChangYongZi.data`.
+
+        """
+        super(XianDaiChangYongZi, self).read()
+
+
+class SUBTLEX(CSVMixin, BaseRemoteArchiveSource):
+    """A class for downloading and reading remote SUBTLEX-CH data.
+
+    If *cache_data* is ``True``, the processed source data will be stored
+    in a file cache so calls to :meth:`download` and :meth:`read` via
+    future instances can be ignored. The cache is associated with the
+    *cache_name*. The cached data is retained for *timeout* number of
+    seconds (defaults to the module-level constant
+    :data:`DEFAULT_TIMEOUT`). If *cache_data* is ``False``, then the
+    processed data is only stored in memory -- future instances will
+    need to redownload and reprocess the data.
+
+    See parent classes :class:`BaseRemoteArchiveSource` and :class:`CSVMixin`
+    for more information.
+
+    :param bool cache_data: Whether or not to cache the processed data.
+    :param str cache_name: The cache's name.
+    :param int timeout: How long in seconds until the cached data expires).
+
+    """
+
+    #: The URL for this data source.
     download_url = ('http://expsy.ugent.be/subtlex-ch/'
                     'SUBTLEX_CH_131210_CE.utf8.zip')
-    name = 'SUBTLEX'
-    whitelist = (
-        'SUBTLEX_CH_131210_CE.utf8',
-    )
+
+    #: A tuple containing the CSV file's header.
     headers = (
         'word', 'length', 'pinyin', 'pinyin.input', 'wcount', 'w.million',
         'log10w', 'w-cd', 'w-cd%', 'log10cd', 'dominant.pos',
         'dominant.pos.freq', 'all.pos', 'all.pos.freq', 'english'
     )
 
-    def _read_file(self, filename, contents):
-        """Processes and stores the file contents into self.data."""
-        lines = contents.splitlines()
-        for line in lines:
-            if line.startswith('Word'):
-                continue  # Skip the header.
-            row = line.split('\t')
-            key = row.pop(0)
-            row = row[:-1]
-            headers = self.headers[1:-1]
-            value = dict(zip([self.key_prefix + h for h in headers], row))
-            self.data.setdefault(key, {})
-            self.data[key].update(value)
+    #: A unique name/abbreviation for this source.
+    name = 'SUBTLEX'
+
+    #: A tuple containing names of files that should be processed. If empty,
+    #: then all extracted files are processed.
+    whitelist = (
+        'SUBTLEX_CH_131210_CE.utf8',
+    )
+
+    def __init__(self, cache_data=True, cache_name='dragonmasher',
+                 timeout=DEFAULT_TIMEOUT):
+        super(SUBTLEX, self).__init__(cache_data=cache_data,
+                                      cache_name=cache_name, timeout=timeout,
+                                      encoding='utf-8')
+
+    def download(self, force_download=False):
+        """Downloads the SUBTLEX-CH data and saves it to a temporary directory.
+
+        The temporary directory's path is accessible through
+        :attr:`SUBTLEX.temp_dir`.
+
+        After downloading the source archive, the contents are then extracted.
+        :attr:`SUBTLEX.files` is set to a tuple containing the absolute
+        filenames of the files extracted.
+
+        If *force_download* is ``True``, then downloaded files and cached data
+        will be deleted and the source data will be downloaded again. If
+        *force_download* is ``False``, then the download will be cancelled if
+        the files have already been downloaded or the processed data has been
+        cached.
+
+        :param bool force_download: Whether or not to download the source files
+            even if the data is cached.
+
+        """
+        super(SUBTLEX, self).__init__(force_download=force_download)
+
+    def process_file(self, filename, contents):
+        """Processes the SUBTLEX-CH word and word frequency data.
+
+        :param str filename: The filename of the file to be processed.
+        :param str contents: The contents to be processed.
+        :return: The processed data.
+        :rtype: :class:`dict`
+
+        """
+        return super(SUBTLEX, self).process_file(filename, contents,
+                                                 delimiter='\t',
+                                                 comments=('W',),
+                                                 exclude=(14,))
+
+    def read(self):
+        """Reads and processes the downloaded SUBTLEX-CH files.
+
+        The processed data is stored in :attr:`SUBTLEX.data`.
+
+        After reading and processing the source files, they are deleted.
+
+        """
+        super(SUBTLEX, self).read()

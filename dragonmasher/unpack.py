@@ -1,6 +1,6 @@
 """Unpack tar/zip archives.
 
-This code is copied from the Python 3.2 standard library.
+This module is copied from the Python 3.2 standard library.
 
 """
 
@@ -8,7 +8,7 @@ import os
 
 
 class ReadError(EnvironmentError):
-    """Raised when an archive cannot be read"""
+    """Raised when an archive cannot be read."""
 
 
 def _ensure_directory(path):
@@ -88,17 +88,15 @@ def _find_unpack_format(filename):
 def unpack_archive(filename, extract_dir=None, format=None):
     """Unpack an archive.
 
-    *filename* is the name of the archive.
+    If *format* is not provided, :func:`unpack_archive` will use the filename
+    extension and see if an unpacker was registered for that extension. In case
+    none is found, a :exc:`ValueError` is raised.
 
-    *extract_dir* is the name of the target directory, where the archive
-    is unpacked. If not provided, the current working directory is used.
-
-    *format* is the archive format: one of "zip", "tar", or "gztar". Or any
-    other registered format. If not provided, unpack_archive will use the
-    filename extension and see if an unpacker was registered for that
-    extension.
-
-    In case none is found, a ValueError is raised.
+    :param str filename: The the full path of the archive file.
+    :param str extract_dir: The name of the target directory where the archive
+        is unpacked. If not provided, the current working directory is used.
+    :param str format: The archive format (one of ``'zip'``, ``'tar'``, or
+        ``'gztar'``)
 
     """
     if extract_dir is None:

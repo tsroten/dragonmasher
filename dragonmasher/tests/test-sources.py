@@ -10,10 +10,10 @@ from ticktock import TimeoutShelf
 from dragonmasher import sources
 
 
-class LocalSourceTestCase(unittest.TestCase):
-    """Tests for the local source classes.
+class PackageResourceSourceTestCase(unittest.TestCase):
+    """Tests for the package resource source classes.
 
-    This tests the BaseLocalSource class and the CSVMixin class.
+    This tests the BasePackageResourceSource class and the CSVMixin class.
 
     """
 
@@ -65,8 +65,8 @@ class BaseRemoteSourceTestCase(unittest.TestCase):
                 with open(filename, 'w') as f:
                     f.write(data)
 
-            def _read_file(self, f, contents):
-                self.data['test'] = contents
+            def process_file(self, fname, contents):
+                return {'test': contents}
 
         self.source = RemoteSource(cache_data=False)
 
@@ -74,7 +74,7 @@ class BaseRemoteSourceTestCase(unittest.TestCase):
         """Deletes cache files and temporary files."""
         if self.source.cache_data:
             self.source.cache.dict.delete()
-        if hasattr(self.source, 'temp_dir'):
+        if self.source.temp_dir is not None:
             self.source._cleanup()
 
     def test_remote_source_init(self):
@@ -100,7 +100,7 @@ class BaseRemoteSourceTestCase(unittest.TestCase):
         self.assertRaises(OSError, self.source.read)
         self.source.download()
         self.source.read()
-        self.assertTrue(not hasattr(self.source, 'temp_dir'))
+        self.assertEqual(None, self.source.temp_dir)
         self.assertEqual(None, self.source.files)
         self.assertEqual('Hello world!\n', self.source.data['test'])
 
