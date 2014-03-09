@@ -365,7 +365,7 @@ class CSVMixin(object):
     This mixin implements the required :meth:`process_file` method for Chinese
     data source classes.
 
-    The ``headers`` attribute should be defined by child classes and is used
+    :data:`headers` should be defined by child classes and is used
     to create dictionary keys (each header is prepended with
     :data:`BaseSource.key_prefix`). The values are read directly from each
     column of the CSV file.
@@ -577,7 +577,7 @@ class SUBTLEX(CSVMixin, BaseRemoteArchiveSource):
             even if the data is cached.
 
         """
-        super(SUBTLEX, self).__init__(force_download=force_download)
+        super(SUBTLEX, self).download(force_download=force_download)
 
     def process_file(self, filename, contents):
         """Processes the SUBTLEX-CH word and word frequency data.
@@ -602,3 +602,238 @@ class SUBTLEX(CSVMixin, BaseRemoteArchiveSource):
 
         """
         super(SUBTLEX, self).read()
+
+
+class BaseJunDa(CSVMixin, BaseRemoteSource):
+    """A base data source class for Jun Da's character frequency lists.
+
+    Child classes must simply pass the desired download option via
+    :meth:`__init__`'s *name* argument. The rest of the data source
+    functionality is handled by this class.
+
+    See parent classes :class:`BaseRemoteSource` and :class:`CSVMixin` for more
+    information.
+
+    """
+
+    _download_url_base = ('http://lingua.mtsu.edu/chinese-computing/statistics'
+                          '/char/download.php?Which=')
+
+    #: A tuple containing the CSV file's header.
+    headers = ('number', 'character', 'count', 'percentile', 'pinyin',
+               'definition')
+
+    #: The column number to use as a dictionary key when processing the data
+    #: (counting from zero).
+    index_column = 1
+
+    def __init__(self, name, cache_data=True, cache_name='dragonmasher',
+                 timeout=DEFAULT_TIMEOUT):
+        """Creates the :attr:`download_url` and :attr:`name` attributes.
+
+        :param str name: The download option for this data source (e.g.
+            ``'CL'`` or ``'MO'``).
+        :param bool cache_data: Whether or not to cache the processed data.
+        :param str cache_name: The cache's name.
+        :param int timeout: How long in seconds until the cached data expires).
+
+        """
+        #: The URL for this data source.
+        self.download_url = self._download_url_base + name
+
+        #: A unique name/abbreviation for this source.
+        self.name = 'JUNDA-' + name
+
+        super(BaseJunDa, self).__init__(cache_data=cache_data,
+                                        cache_name=cache_name, timeout=timeout,
+                                        encoding='gb18030')
+
+    def download(self, force_download=False):
+        """Downloads Jun Da's data and saves it to a temporary directory.
+
+        The temporary directory's path is accessible through the
+        :attr:`temp_dir` attribute.
+
+        After downloading the source archive, the contents are then extracted.
+        The attribute :attr:`files` is set to a tuple containing the absolute
+        filenames of the files extracted.
+
+        If *force_download* is ``True``, then downloaded files and cached data
+        will be deleted and the source data will be downloaded again. If
+        *force_download* is ``False``, then the download will be cancelled if
+        the files have already been downloaded or the processed data has been
+        cached.
+
+        :param bool force_download: Whether or not to download the source files
+            even if the data is cached.
+
+        """
+        super(BaseJunDa, self).download(force_download=force_download,
+                                        filename='CharFreq.txt')
+
+    def process_file(self, filename, contents):
+        """Processes the Jun Da character frequency file.
+
+        :param str filename: The filename of the file to be processed.
+        :param str contents: The contents to be processed.
+        :return: The processed data.
+        :rtype: :class:`dict`
+
+        """
+        return super(BaseJunDa, self).process_file(filename, contents,
+                                                   delimiter='\t',
+                                                   comments=('/',),
+                                                   exclude=(4, 5))
+
+    def read(self):
+        """Reads and processes the downloaded Jun Da character frequency file.
+
+        The processed data is stored in :attr:`data`.
+
+        After reading and processing the source file, it is deleted.
+
+        """
+        super(BaseJunDa, self).read()
+
+
+class JunDaClassicalCharacterList(BaseJunDa):
+    """A class for processing Jun Da's Classical Character Frequency data.
+
+    This data comes from Jun Da's character frequency lists and is titled
+    `Classical Chinese Character Frequency List`_ (古汉语单字频率列表).
+
+    The English and Pinyin data columns are dropped when processing this data
+    source.
+
+    See parent class :class:`BaseJunDa` for more information.
+
+    :param bool cache_data: Whether or not to cache the processed data.
+    :param str cache_name: The cache's name.
+    :param int timeout: How long in seconds until the cached data expires).
+
+    .. _Classical Chinese Character Frequency List:
+        http://lingua.mtsu.edu/chinese-computing/statistics/char/list.php?
+        Which=CL
+
+    """
+
+    def __init__(self, cache_data=True, cache_name='dragonmasher',
+                 timeout=DEFAULT_TIMEOUT):
+        super(self.__class__, self).__init__('CL', cache_data=cache_data,
+                                             cache_name=cache_name,
+                                             timeout=timeout)
+
+
+class JunDaModernCharacterList(BaseJunDa):
+    """A class for processing Jun Da's Modern Character Frequency data.
+
+    This data comes from Jun Da's character frequency lists and is titled
+    `Modern Chinese Character Frequency List`_ (现代汉语单字频率列表).
+
+    The English and Pinyin data columns are dropped when processing this data
+    source.
+
+    See parent class :class:`BaseJunDa` for more information.
+
+    :param bool cache_data: Whether or not to cache the processed data.
+    :param str cache_name: The cache's name.
+    :param int timeout: How long in seconds until the cached data expires).
+
+    .. _Modern Chinese Character Frequency List:
+        http://lingua.mtsu.edu/chinese-computing/statistics/char/list.php?
+        Which=MO
+
+    """
+
+    def __init__(self, cache_data=True, cache_name='dragonmasher',
+                 timeout=DEFAULT_TIMEOUT):
+        super(self.__class__, self).__init__('MO', cache_data=cache_data,
+                                             cache_name=cache_name,
+                                             timeout=timeout)
+
+
+class JunDaImaginativeCharacterList(BaseJunDa):
+    """A class for processing Jun Da's imaginative texts character data.
+
+    This data comes from Jun Da's character frequency lists and is titled
+    `Character frequency list of imaginative texts in Modern Chinese`_
+    (现代汉语文学类文本单字列表).
+
+    The English and Pinyin data columns are dropped when processing this data
+    source.
+
+    See parent class :class:`BaseJunDa` for more information.
+
+    :param bool cache_data: Whether or not to cache the processed data.
+    :param str cache_name: The cache's name.
+    :param int timeout: How long in seconds until the cached data expires).
+
+    .. _Character frequency list of imaginative texts in Modern Chinese:
+        http://lingua.mtsu.edu/chinese-computing/statistics/char/list.php?
+        Which=IM
+
+    """
+
+    def __init__(self, cache_data=True, cache_name='dragonmasher',
+                 timeout=DEFAULT_TIMEOUT):
+        super(self.__class__, self).__init__('IM', cache_data=cache_data,
+                                             cache_name=cache_name,
+                                             timeout=timeout)
+
+
+class JunDaInformativeCharacterList(BaseJunDa):
+    """A class for processing Jun Da's informative texts character data.
+
+    This data comes from Jun Da's character frequency lists and is titled
+    `Character frequency list of informative texts in Modern Chinese`_
+    (现代汉语信息类文本单字列表).
+
+    The English and Pinyin data columns are dropped when processing this data
+    source.
+
+    See parent class :class:`BaseJunDa` for more information.
+
+    :param bool cache_data: Whether or not to cache the processed data.
+    :param str cache_name: The cache's name.
+    :param int timeout: How long in seconds until the cached data expires).
+
+    .. _Character frequency list of informative texts in Modern Chinese:
+        http://lingua.mtsu.edu/chinese-computing/statistics/char/list.php?
+        Which=IN
+
+    """
+
+    def __init__(self, cache_data=True, cache_name='dragonmasher',
+                 timeout=DEFAULT_TIMEOUT):
+        super(self.__class__, self).__init__('IN', cache_data=cache_data,
+                                             cache_name=cache_name,
+                                             timeout=timeout)
+
+
+class JunDaCombinedCharacterList(BaseJunDa):
+    """A class for processing Jun Da's Combined Character Frequency data.
+
+    This data comes from Jun Da's character frequency lists and is titled
+    `Combined character frequency list of Classical and Modern Chinese`_
+    (汉字单字字频总表).
+
+    The English and Pinyin data columns are dropped when processing this data
+    source.
+
+    See parent class :class:`BaseJunDa` for more information.
+
+    :param bool cache_data: Whether or not to cache the processed data.
+    :param str cache_name: The cache's name.
+    :param int timeout: How long in seconds until the cached data expires).
+
+    .. _Combined character frequency list of Classical and Modern Chinese:
+        http://lingua.mtsu.edu/chinese-computing/statistics/char/list.php?
+        Which=TO
+
+    """
+
+    def __init__(self, cache_data=True, cache_name='dragonmasher',
+                 timeout=DEFAULT_TIMEOUT):
+        super(self.__class__, self).__init__('TO', cache_data=cache_data,
+                                             cache_name=cache_name,
+                                             timeout=timeout)

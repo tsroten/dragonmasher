@@ -63,6 +63,61 @@ In both cases the processed data is accessible in the :attr:`data` attribute.
 
     .. automethod:: read
 
+.. autoclass:: JunDaClassicalCharacterList
+
+    .. attribute:: data
+        :annotation:
+
+        A dictionary containing the processed source data.
+
+    .. automethod:: download(force_download=False)
+
+    .. automethod:: read
+
+.. autoclass:: JunDaModernCharacterList
+
+    .. attribute:: data
+        :annotation:
+
+        A dictionary containing the processed source data.
+
+    .. automethod:: download(force_download=False)
+
+    .. automethod:: read
+
+.. autoclass:: JunDaImaginativeCharacterList
+
+    .. attribute:: data
+        :annotation:
+
+        A dictionary containing the processed source data.
+
+    .. automethod:: download(force_download=False)
+
+    .. automethod:: read
+
+.. autoclass:: JunDaInformativeCharacterList
+
+    .. attribute:: data
+        :annotation:
+
+        A dictionary containing the processed source data.
+
+    .. automethod:: download(force_download=False)
+
+    .. automethod:: read
+
+.. autoclass:: JunDaCombinedCharacterList
+
+    .. attribute:: data
+        :annotation:
+
+        A dictionary containing the processed source data.
+
+    .. automethod:: download(force_download=False)
+
+    .. automethod:: read
+
 
 Base Data Source Classes
 ------------------------
@@ -212,7 +267,6 @@ In general, unless you need to customize the class extensively, it's best not to
 
 .. autoclass:: BaseRemoteArchiveSource
 
-
     .. automethod:: __init__
 
     .. attribute:: cache
@@ -278,6 +332,66 @@ In general, unless you need to customize the class extensively, it's best not to
 
     .. autoattribute:: index_column
         :annotation:
+
+.. autoclass:: BaseJunDa
+
+    .. automethod:: __init__
+
+    .. attribute:: cache
+
+        A :class:`~fcache.cache.FileCache` object for storing data. This
+        attribute is only set if :attr:`cache_data` is ``True``.
+
+    .. attribute:: cache_data
+        :annotation:
+
+        A boolean value indicating whether or not to cache processed data.
+
+    .. attribute:: data
+        :annotation:
+
+        A dictionary containing the processed source data.
+
+    .. automethod:: download
+
+    .. attribute:: encoding
+        :annotation:
+
+        The file encoding to use when opening the source's files.
+
+    .. attribute:: files
+        :annotation:
+
+        A tuple containing the paths to the source's files.
+
+    .. autoattribute:: has_data
+
+    .. autoattribute:: has_files
+
+    .. autoattribute:: headers
+        :annotation:
+
+    .. autoattribute:: index_column
+        :annotation:
+
+    .. autoattribute:: key_prefix
+
+    .. attribute:: name
+        :annotation:
+
+        A string containing the name/abbreviation for this source.
+
+    .. automethod:: process_file
+
+    .. automethod:: read
+
+    .. automethod:: read_file
+
+    .. attribute:: temp_dir
+        :annotation:
+
+        A string indicating the path to the object’s temporary directory.
+    
 
 ``dragonmasher.unpack``
 =======================
