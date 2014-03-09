@@ -374,6 +374,9 @@ class CSVMixin(object):
     :data:`index_column` defaults to ``0``, but should be overridden by child
     classes if a different index column value is needed.
 
+    :meth:`split_line` and :meth:`process_row` can be overridden to provide
+    further customization.
+
     See :class:`HSK`, :class:`TOCFL`, :class:`XianDaiChangYongZi`, or
     :class:`SUBTLEX` for an example of how to use this mixin.
 
@@ -420,8 +423,7 @@ class CSVMixin(object):
             key = row[self.index_column]
             trim_row(row)
             value = dict(zip([self.key_prefix + h for h in headers], row))
-            data.setdefault(key, {})
-            data[key].update(value)
+            self.update(data, {key: value})
         return data
 
     def process_row(self, row):
@@ -431,6 +433,39 @@ class CSVMixin(object):
     def split_line(self, line, delimiter):
         """Splits *line* using *delimiter* as a separator."""
         return line.split(delimiter)
+
+    def update(self, d, other):
+        """Updates a dict *d* with the key/value pairs from *other*.
+
+        *d* and *other* are dictionaries that contain dictionaries. It is the
+        second layer of dictionaries that are updated.
+
+        Existing keys are not overwritten, but instead their values are
+        converted to a list and the new value is appended. Duplicate values are
+        ignored.
+
+        :param dict d: A base dictionary that should be updated.
+        :param dict other: A dictionary whose key/value pairs should be added
+            to *d*.
+
+        """
+        for key, value in other.items():
+            d.setdefault(key, {})
+            overlap = bool(set(list(d[key])).intersection(set(list(value))))
+            if not overlap:
+                d[key] = value
+                continue
+            for k, v in value.items():
+                if k not in d[key]:
+                    d[key][k] = v
+                    break
+                dvalue = d[key][k]
+                if ((isinstance(dvalue, list) and v in dvalue) or
+                        (isinstance(dvalue, str) and v == dvalue)):
+                    continue
+                elif not isinstance(dvalue, list):
+                    d[key][k] = [d[key][k]]
+                d[key][k].append(v)
 
 
 class HSK(CSVMixin, BasePackageResourceSource):

@@ -192,3 +192,44 @@ class SUBTLEXTestCase(unittest.TestCase):
         self.subtlex.read()
         self.assertEqual(4, len(self.subtlex.data))
         self.assertEqual('1', self.subtlex.data['的']['SUBTLEX-length'])
+
+
+class CSVMixinTestCase(unittest.TestCase):
+    """Unit tests for the CSVMixin class."""
+
+    class CSVMixinTest(sources.CSVMixin):
+        key_prefix = 'CSV-'
+
+    def test_update(self):
+        """Tests that CSVMixin.update works correctly."""
+        csvmixin = self.CSVMixinTest()
+
+        d1 = {'1': {'1': '1'}}
+        d2 = {'2': {'2': '2'}}
+        d12 = {'1': {'1': '1'}, '2': {'2': '2'}}
+        d3 = {'3': {'3': '4'}}
+        d4 = {'3': {'3': '5'}}
+        d34 = {'3': {'3': ['4', '5']}}
+
+        csvmixin.update(d1, d2)
+        self.assertEqual(d12, d1)
+        csvmixin.update(d3, d4)
+        self.assertEqual(d34, d3)
+
+        d22 = d2.copy()
+        csvmixin.update(d2, d22)
+        self.assertEqual(d22, d2)
+
+    def test_split_line(self):
+        """Tests that CSVMixin.split_line works correctly."""
+        csvmixin = self.CSVMixinTest()
+        line = 'Hello,world'
+        sline = ['Hello', 'world']
+        self.assertEqual(sline, csvmixin.split_line(line, ','))
+
+    def test_process_row(self):
+        """Tests that CSVMixin.process_row works correctly."""
+        csvmixin = self.CSVMixinTest()
+        row = ['Hello', 'world']
+        prow = row[:]
+        self.assertEqual(prow, csvmixin.process_row(row))
