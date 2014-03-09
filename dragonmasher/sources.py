@@ -16,6 +16,7 @@ if is_python3:
 else:
     from urllib2 import urlopen
     from codecs import open
+    str = unicode
 
 from fcache.cache import FileCache
 from ticktock import TimeoutShelf
@@ -434,7 +435,7 @@ class CSVMixin(object):
         """Splits *line* using *delimiter* as a separator."""
         return line.split(delimiter)
 
-    def update(self, d, other):
+    def update(self, d, other, allow_duplicates=False):
         """Updates a dict *d* with the key/value pairs from *other*.
 
         *d* and *other* are dictionaries that contain dictionaries. It is the
@@ -442,11 +443,13 @@ class CSVMixin(object):
 
         Existing keys are not overwritten, but instead their values are
         converted to a list and the new value is appended. Duplicate values are
-        ignored.
+        ignored (if *allow_duplicates* is ``False``).
 
         :param dict d: A base dictionary that should be updated.
         :param dict other: A dictionary whose key/value pairs should be added
             to *d*.
+        :param bool allow_duplicates: Whether or not to add duplicate values to
+            *d*.
 
         """
         for key, value in other.items():
@@ -460,11 +463,12 @@ class CSVMixin(object):
                     d[key][k] = v
                     break
                 dvalue = d[key][k]
-                if ((isinstance(dvalue, list) and v in dvalue) or
-                        (isinstance(dvalue, str) and v == dvalue)):
+                if (((isinstance(dvalue, list) and v in dvalue) or
+                        (isinstance(dvalue, str) and v == dvalue)) and
+                        allow_duplicates is False):
                     continue
                 elif not isinstance(dvalue, list):
-                    d[key][k] = [d[key][k]]
+                    d[key][k] = [dvalue]
                 d[key][k].append(v)
 
 

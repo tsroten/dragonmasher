@@ -216,9 +216,13 @@ class CSVMixinTestCase(unittest.TestCase):
         csvmixin.update(d3, d4)
         self.assertEqual(d34, d3)
 
-        d22 = d2.copy()
-        csvmixin.update(d2, d22)
-        self.assertEqual(d22, d2)
+        # Check duplicates
+        d22 = {'2': {'2': '2'}}
+        d22copy = {'2': {'2': '2'}}
+        csvmixin.update(d22, d22copy, allow_duplicates=False)
+        self.assertEqual(d22copy, d22)
+        csvmixin.update(d22, d22copy, allow_duplicates=True)
+        self.assertEqual({'2': {'2': ['2', '2']}}, d22)
 
     def test_split_line(self):
         """Tests that CSVMixin.split_line works correctly."""
