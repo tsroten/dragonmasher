@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Chinese data source classes and methods."""
 
 import contextlib
@@ -414,13 +415,22 @@ class CSVMixin(object):
         for line in contents.splitlines():
             if line[0] in comments:
                 continue  # Skip all comments.
-            row = line.split(delimiter)
+            sline = self.split_line(line, delimiter)
+            row = self.process_row(sline)
             key = row[self.index_column]
             trim_row(row)
             value = dict(zip([self.key_prefix + h for h in headers], row))
             data.setdefault(key, {})
             data[key].update(value)
         return data
+
+    def process_row(self, row):
+        """Processes the fields in *row*."""
+        return row
+
+    def split_line(self, line, delimiter):
+        """Splits *line* using *delimiter* as a separator."""
+        return line.split(delimiter)
 
 
 class HSK(CSVMixin, BasePackageResourceSource):
