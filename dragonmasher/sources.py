@@ -5,6 +5,7 @@ import contextlib
 import logging
 import os
 import pkgutil
+import re
 import shutil
 import sys
 import tempfile
@@ -405,24 +406,18 @@ class CSVMixin(object):
         :rtype: :class:`dict`
 
         """
-        excluded_columns = sorted(exclude + (self.index_column,), reverse=True)
-
-        def trim_row(row):
-            """Removes unwanted fields from a list (in-place)."""
-            for column in excluded_columns:
-                del row[column]
-
         logger.debug("Processing file: '%s'." % filename)
+        excluded_columns = sorted(exclude + (self.index_column,), reverse=True)
         data = {}
         headers = list(self.headers)
-        trim_row(headers)
+        self.trim_row(headers, excluded_columns)
         for line in contents.splitlines():
             if line[0] in comments:
                 continue  # Skip all comments.
             sline = self.split_line(line, delimiter)
             row = self.process_row(sline)
             key = row[self.index_column]
-            trim_row(row)
+            self.trim_row(row, excluded_columns)
             value = dict(zip([self.key_prefix + h for h in headers], row))
             self.update(data, {key: value})
         return data
@@ -434,6 +429,11 @@ class CSVMixin(object):
     def split_line(self, line, delimiter):
         """Splits *line* using *delimiter* as a separator."""
         return line.split(delimiter)
+
+    def trim_row(self, row, excluded_columns):
+        """Removes unwanted fields from a list (in-place)."""
+        for column in excluded_columns:
+            del row[column]
 
     def update(self, d, other, allow_duplicates=False):
         """Updates a dict *d* with the key/value pairs from *other*.
@@ -886,3 +886,81 @@ class JunDaCombinedCharacterList(BaseJunDa):
         super(self.__class__, self).__init__('TO', cache_data=cache_data,
                                              cache_name=cache_name,
                                              timeout=timeout)
+
+
+class CEDICT(CSVMixin, BaseRemoteArchiveSource):
+    """Fetches and processes the CC-CEDICT dictionary data.
+
+    See parent classes :class:`BaseRemoteArchiveSource` and :class:`CSVMixin`
+    for more information.
+
+    :param bool cache_data: Whether or not to cache the processed data.
+    :param str cache_name: The cache's name.
+    :param int timeout: How long in seconds until the cached data expires).
+
+    """
+
+    #: The URL for this data source.
+    download_url = ('http://www.mdbg.net/chindict/export/cedict/'
+                    'cedict_1_0_ts_utf-8_mdbg.zip')
+
+    #: A tuple containing the CSV file's header.
+    headers = ('traditional', 'simplified', 'pinyin', 'definition')
+
+    #: A unique name/abbreviation for this source.
+    name = 'CEDICT'
+
+    #: A tuple containing names of files that should be processed. If empty,
+    #: then all extracted files are processed.
+    whitelist = (
+        'cedict_ts.u8',  # This file is in the ZIP version.
+    )
+
+    def __init__(self, cache_data=True, cache_name='dragonmasher',
+                 timeout=DEFAULT_TIMEOUT):
+        super(self.__class__, self).__init__(cache_data=cache_data,
+                                             cache_name=cache_name,
+                                             timeout=timeout,
+                                             encoding='utf-8')
+
+    def process_file(self, filename, contents):
+        """Processes the CC-CEDICT dictionary file's contents.
+
+        :param str filename: The filename of the file to be processed.
+        :param str contents: The contents to be processed.
+        :return: The processed data.
+        :rtype: :class:`dict`
+
+        """
+        logger.debug("Processing file: '%s'." % filename)
+        data = {}
+        headers = list(self.headers)
+        for line in contents.splitlines():
+            if line.startswith('#'):
+                continue  # Skip all comments.
+            sline = self.split_line(line)
+            if sline is None:
+                # Skip lines that split_line() couldn't parse.
+                logger.warning("Skipping line: '%s'." % line)
+                continue
+            row = self.process_row(sline)
+            value = dict(zip([self.key_prefix + h for h in headers], row))
+            for key in set(row[0:2]):
+                # Create an entry for Simplified and Traditional (if they
+                # differ).
+                self.update(data, {key: value})
+        return data
+
+    def process_row(self, row):
+        """Processes the fields in *row*."""
+        row[3] = row[3].split('/')
+        return row
+
+    def split_line(self, line):
+        """Splits *line* into a list of fields."""
+        m = re.match('^(?P<t>.+) (?P<s>.+) \[(?P<p>.+)\] /(?P<d>.+)/$', line)
+        if m is None:
+            logger.warning("Unable to parse line: '%s'." % line)
+            return None
+        t, s, p, d = m.group('t'), m.group('s'), m.group('p'), m.group('d')
+        return [t, s, p, d]
