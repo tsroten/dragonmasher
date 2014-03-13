@@ -194,16 +194,20 @@ class SUBTLEXTestCase(unittest.TestCase):
         self.assertEqual('1', self.subtlex.data['的']['SUBTLEX-length'])
 
 
-class CSVMixinTestCase(unittest.TestCase):
-    """Unit tests for the CSVMixin class."""
+class FunctionsTestCase(unittest.TestCase):
+    """Unit Tests for helper functions."""
 
-    class CSVMixinTest(sources.CSVMixin):
-        key_prefix = 'CSV-'
+    def test_trim_list(self):
+        """Tests that sources.trim_list works correctly."""
+        L1 = [0, 1, 2, 3, 4, 5, 6]
+        L1_expected = [1, 2, 4, 6]
+        excluded = [0, 3, 5]
 
-    def test_update(self):
-        """Tests that CSVMixin.update works correctly."""
-        csvmixin = self.CSVMixinTest()
+        L1_actual = sources.trim_list(L1, excluded)
+        self.assertEqual(L1_expected, L1_actual)
 
+    def test_update_dict(self):
+        """Tests that sources.update_dict works correctly."""
         d1 = {'1': {'1': '1'}}
         d2 = {'2': {'2': '2'}}
         d12 = {'1': {'1': '1'}, '2': {'2': '2'}}
@@ -211,29 +215,48 @@ class CSVMixinTestCase(unittest.TestCase):
         d4 = {'3': {'3': '5'}}
         d34 = {'3': {'3': ['4', '5']}}
 
-        csvmixin.update(d1, d2)
+        sources.update_dict(d1, d2)
         self.assertEqual(d12, d1)
-        csvmixin.update(d3, d4)
+        sources.update_dict(d3, d4)
         self.assertEqual(d34, d3)
 
         # Check duplicates
         d22 = {'2': {'2': '2'}}
         d22copy = {'2': {'2': '2'}}
-        csvmixin.update(d22, d22copy, allow_duplicates=False)
+        sources.update_dict(d22, d22copy, allow_duplicates=False)
         self.assertEqual(d22copy, d22)
-        csvmixin.update(d22, d22copy, allow_duplicates=True)
+        sources.update_dict(d22, d22copy, allow_duplicates=True)
         self.assertEqual({'2': {'2': ['2', '2']}}, d22)
 
-    def test_split_line(self):
-        """Tests that CSVMixin.split_line works correctly."""
-        csvmixin = self.CSVMixinTest()
-        line = 'Hello,world'
-        sline = ['Hello', 'world']
-        self.assertEqual(sline, csvmixin.split_line(line, ','))
+
+class CSVMixinTestCase(unittest.TestCase):
+    """Unit tests for the CSVMixin class."""
+
+    def setUp(self):
+        self.csvmixin = sources.CSVMixin()
 
     def test_process_row(self):
         """Tests that CSVMixin.process_row works correctly."""
-        csvmixin = self.CSVMixinTest()
         row = ['Hello', 'world']
         prow = row[:]
-        self.assertEqual(prow, csvmixin.process_row(row))
+        self.assertEqual(prow, self.csvmixin.process_row(row, ('#',)))
+
+        row = ['#Comment', 'here']
+        self.assertEqual(None, self.csvmixin.process_row(row, ('#',)))
+
+    def test_get_rows(self):
+        """Tests that CSVMixin.get_rows works correctly."""
+        lines = ['A,B,C', 'D,E,F']
+        erows = [['A', 'B', 'C'], ['D', 'E', 'F']]
+        rows = self.csvmixin.get_rows(lines, delimiter=',')
+        self.assertEqual(erows, list(rows))
+
+    def test_process_file(self):
+        """Tests that CSVMixin.process_file works correctly."""
+        self.csvmixin.headers = ('Letter', 'Number', 'Foo')
+        self.csvmixin.key_prefix = 'CSV-'
+        contents = 'a,1,bar\nb,2,bar\nc,3,bar\nd,4,bar\n'
+        edata = {'a': {'CSV-Number': '1'}, 'b': {'CSV-Number': '2'},
+                 'c': {'CSV-Number': '3'}, 'd': {'CSV-Number': '4'}}
+        data = self.csvmixin.process_file('foo.txt', contents, exclude=(2,))
+        self.assertEqual(edata, data)

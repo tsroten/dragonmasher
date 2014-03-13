@@ -11,12 +11,17 @@ import sys
 import tempfile
 
 is_python3 = sys.version_info[0] > 2
+is_python2 = not is_python3
 
 if is_python3:
+    import csv
     from urllib.request import urlopen
 else:
-    from urllib2 import urlopen
     from codecs import open
+    from urllib2 import urlopen
+
+    from . import unicodecsv as csv
+
     str = unicode
 
 from fcache.cache import FileCache
@@ -30,6 +35,48 @@ PACKAGE = __name__.rpartition('.')[0]
 
 #: The default timeout value for cached data (in seconds).
 DEFAULT_TIMEOUT = 12096000
+
+
+def trim_list(L, excluded):
+    """Removes unwanted itmes from a list."""
+    return [item for i, item in enumerate(L) if i not in excluded]
+
+
+def update_dict(d, other, allow_duplicates=False):
+    """Updates a dict *d* with the key/value pairs from *other*.
+
+    *d* and *other* are dictionaries that contain dictionaries. It is the
+    second layer of dictionaries that are updated.
+
+    Existing keys are not overwritten, but instead their values are
+    converted to a list and the new value is appended. Duplicate values are
+    ignored (if *allow_duplicates* is ``False``).
+
+    :param dict d: A base dictionary that should be updated.
+    :param dict other: A dictionary whose key/value pairs should be added
+        to *d*.
+    :param bool allow_duplicates: Whether or not to add duplicate values to
+        *d*.
+
+    """
+    for key, value in other.items():
+        d.setdefault(key, {})
+        overlap = bool(set(list(d[key])).intersection(set(list(value))))
+        if not overlap:
+            d[key] = value
+            continue
+        for k, v in value.items():
+            if k not in d[key]:
+                d[key][k] = v
+                break
+            dvalue = d[key][k]
+            if (((isinstance(dvalue, list) and v in dvalue) or
+                    (isinstance(dvalue, str) and v == dvalue)) and
+                    allow_duplicates is False):
+                continue
+            elif not isinstance(dvalue, list):
+                d[key][k] = [dvalue]
+            d[key][k].append(v)
 
 
 class BaseSource(object):
@@ -376,7 +423,7 @@ class CSVMixin(object):
     :data:`index_column` defaults to ``0``, but should be overridden by child
     classes if a different index column value is needed.
 
-    :meth:`split_line` and :meth:`process_row` can be overridden to provide
+    :meth:`get_rows` and :meth:`process_row` can be overridden to provide
     further customization.
 
     See :class:`HSK`, :class:`TOCFL`, :class:`XianDaiChangYongZi`, or
@@ -407,69 +454,31 @@ class CSVMixin(object):
 
         """
         logger.debug("Processing file: '%s'." % filename)
-        excluded_columns = sorted(exclude + (self.index_column,), reverse=True)
+        excluded_columns = exclude + (self.index_column,)
         data = {}
-        headers = list(self.headers)
-        self.trim_row(headers, excluded_columns)
-        for line in contents.splitlines():
-            if line[0] in comments:
-                continue  # Skip all comments.
-            sline = self.split_line(line, delimiter)
-            row = self.process_row(sline)
+        headers = trim_list(self.headers, excluded_columns)
+        if is_python2:
+            contents = contents.encode('utf-8')
+        rows = self.get_rows(contents.splitlines(), delimiter=delimiter)
+        for row in rows:
+            prow = self.process_row(row, comments)
+            if prow is None:
+                logger.debug("Skipping row: '%s'" % row)
+                continue
             key = row[self.index_column]
-            self.trim_row(row, excluded_columns)
-            value = dict(zip([self.key_prefix + h for h in headers], row))
-            self.update(data, {key: value})
+            trow = trim_list(row, excluded_columns)
+            value = dict(zip([self.key_prefix + h for h in headers], trow))
+            update_dict(data, {key: value})
         return data
 
-    def process_row(self, row):
+    def get_rows(self, csvfile, delimiter=','):
+        return csv.reader(csvfile, delimiter=delimiter)
+
+    def process_row(self, row, comments):
         """Processes the fields in *row*."""
+        if row[0][0] in comments:
+            return None
         return row
-
-    def split_line(self, line, delimiter):
-        """Splits *line* using *delimiter* as a separator."""
-        return line.split(delimiter)
-
-    def trim_row(self, row, excluded_columns):
-        """Removes unwanted fields from a list (in-place)."""
-        for column in excluded_columns:
-            del row[column]
-
-    def update(self, d, other, allow_duplicates=False):
-        """Updates a dict *d* with the key/value pairs from *other*.
-
-        *d* and *other* are dictionaries that contain dictionaries. It is the
-        second layer of dictionaries that are updated.
-
-        Existing keys are not overwritten, but instead their values are
-        converted to a list and the new value is appended. Duplicate values are
-        ignored (if *allow_duplicates* is ``False``).
-
-        :param dict d: A base dictionary that should be updated.
-        :param dict other: A dictionary whose key/value pairs should be added
-            to *d*.
-        :param bool allow_duplicates: Whether or not to add duplicate values to
-            *d*.
-
-        """
-        for key, value in other.items():
-            d.setdefault(key, {})
-            overlap = bool(set(list(d[key])).intersection(set(list(value))))
-            if not overlap:
-                d[key] = value
-                continue
-            for k, v in value.items():
-                if k not in d[key]:
-                    d[key][k] = v
-                    break
-                dvalue = d[key][k]
-                if (((isinstance(dvalue, list) and v in dvalue) or
-                        (isinstance(dvalue, str) and v == dvalue)) and
-                        allow_duplicates is False):
-                    continue
-                elif not isinstance(dvalue, list):
-                    d[key][k] = [dvalue]
-                d[key][k].append(v)
 
 
 class HSK(CSVMixin, BasePackageResourceSource):
