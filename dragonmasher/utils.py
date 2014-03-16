@@ -26,7 +26,7 @@ def trim_list(L, excluded):
     return [item for i, item in enumerate(L) if i not in excluded]
 
 
-def update_dict(d, other, allow_duplicates=False):
+def update_dict(d, other, allow_duplicates=False, annotate=False):
     """Updates a dict *d* with the key/value pairs from *other*.
 
     *d* and *other* are dictionaries that contain dictionaries. It is the
@@ -41,9 +41,14 @@ def update_dict(d, other, allow_duplicates=False):
         to *d*.
     :param bool allow_duplicates: Whether or not to add duplicate values to
         *d*.
+    :param bool annotate: Whether or not to ignore keys present in *other* that
+        aren't present in *d*. In other words, if ``True``, *other*'s values are
+        used to annotate *d*'s existing values.
 
     """
     for key, value in other.items():
+        if key not in d and annotate is True:
+            continue
         d.setdefault(key, {})
         overlap = bool(set(list(d[key])).intersection(set(list(value))))
         if not overlap:

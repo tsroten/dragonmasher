@@ -47,3 +47,13 @@ class UtilsFunctionsTestCase(unittest.TestCase):
         self.assertEqual(d22copy, d22)
         utils.update_dict(d22, d22copy, allow_duplicates=True)
         self.assertEqual({'2': {'2': ['2', '2']}}, d22)
+
+    def test_update_dict_annotate(self):
+        """Tests that update_dict handles the *annotate* argument correctly."""
+        d1 = {'1': {'1': '1'}}
+        d2 = {'2': {'2': '2'}}
+
+        utils.update_dict(d1, d2, annotate=True)
+        self.assertEqual({'1': {'1': '1'}}, d1)
+        utils.update_dict(d1, d2, annotate=False)
+        self.assertEqual({'1': {'1': '1'}, '2': {'2': '2'}}, d1)
