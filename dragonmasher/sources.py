@@ -38,6 +38,18 @@ PACKAGE = __name__.rpartition('.')[0]
 DEFAULT_TIMEOUT = 12096000
 
 
+def hex_to_chr(h):
+    """Covert strings like 'U+4E5D' to corresponding Unicode characters.
+
+    This function also works with regular expression match objects.
+
+    """
+    if hasattr(h, 'group'):
+        h = h.group()
+    ordinal = int(h.strip('U+'), 16)
+    return chr(ordinal) if is_python3 else unichr(ordinal)
+
+
 def trim_list(L, excluded):
     """Removes unwanted itmes from a list."""
     return [item for i, item in enumerate(L) if i not in excluded]
@@ -64,7 +76,10 @@ def update_dict(d, other, allow_duplicates=False):
         d.setdefault(key, {})
         overlap = bool(set(list(d[key])).intersection(set(list(value))))
         if not overlap:
-            d[key] = value
+            if isinstance(value, dict):
+                d[key].update(value)
+            else:
+                d[key] = value
             continue
         for k, v in value.items():
             if k not in d[key]:
@@ -122,7 +137,7 @@ class BaseSource(object):
             contents = self.read_file(filename)
             if contents is not None:
                 data = self.process_file(filename, contents)
-                self.data.update(data)
+                update_dict(self.data, data)
 
     def read_file(self, filename):
         """Reads a source file's contents.
@@ -1059,4 +1074,90 @@ class LWCWords(CSVMixin, BaseRemoteArchiveSource):
         if not re.search('[%s]' % zhon.hanzi.cjk_ideographs, row[1]):
             # Skip words that don't have Chinese characters.
             return None
+        return row
+
+
+class Unihan(CSVMixin, BaseRemoteArchiveSource):
+    """Fetches and processes Unihan data.
+
+    See parent class :class:`BaseRemoteArchiveSource` for more information.
+
+    :param bool cache_data: Whether or not to cache the processed data.
+    :param str cache_name: The cache's name.
+    :param int timeout: How long in seconds until the cached data expires).
+
+    """
+
+    #: The URL for this data source.
+    download_url = 'http://www.unicode.org/Public/UCD/latest/ucd/Unihan.zip'
+
+    #: A tuple containing the CSV file's header.
+    headers = ('character', 'field', 'value')
+
+    #: A unique name/abbreviation for this source.
+    name = 'UNIHAN'
+
+    def __init__(self, cache_data=True, cache_name='dragonmasher',
+                 timeout=DEFAULT_TIMEOUT):
+        super(self.__class__, self).__init__(cache_data=cache_data,
+                                             cache_name=cache_name,
+                                             timeout=timeout,
+                                             encoding='utf-8')
+
+    def download(self, force_download=False):
+        """Downloads the Unihan file and saves it to a temporary directory.
+
+        The temporary directory's path is accessible through the
+        :attr:`temp_dir` attribute.
+
+        After downloading the source archive, the contents are then extracted.
+        The attribute :attr:`files` is set to a tuple containing the absolute
+        filenames of the files extracted.
+
+        If *force_download* is ``True``, then downloaded files and cached data
+        will be deleted and the source data will be downloaded again. If
+        *force_download* is ``False``, then the download will be cancelled if
+        the files have already been downloaded or the processed data has been
+        cached.
+
+        :param bool force_download: Whether or not to download the source files
+            even if the data is cached.
+
+        """
+        super(self.__class__, self).download(force_download=force_download,
+                                             filename='LWC-words.zip')
+
+    def process_file(self, filename, contents):
+        """Processes a Unihan data file.
+
+        :param str filename: The filename of the file to be processed.
+        :param str contents: The contents to be processed.
+        :return: The processed data.
+        :rtype: :class:`dict`
+
+        """
+        logger.debug("Processing file: '%s'." % filename)
+        excluded_columns = (self.index_column,)
+        data = {}
+        if is_python2:
+            contents = contents.encode('utf-8')
+        rows = self.get_rows(contents.splitlines(), delimiter='\t')
+        for row in rows:
+            prow = self.process_row(row, ('#',))
+            if prow is None:
+                logger.debug("Skipping row: '%s'" % row)
+                continue
+            key = row[self.index_column]
+            trow = trim_list(row, excluded_columns)
+            value = {self.key_prefix + trow[0]: trow[1]}
+            update_dict(data, {key: value})
+        return data
+
+    def process_row(self, row, comments):
+        """Processes the fields in *row*."""
+        if row[0][0] in comments or not row:
+            return None
+        row[0] = hex_to_chr(row[0][2:])
+        if 'U+' in row[-1]:
+            row[-1] = re.sub('U\+[A-F0-9]*', hex_to_chr, row[-1])
         return row

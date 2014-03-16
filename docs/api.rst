@@ -139,6 +139,17 @@ In both cases the processed data is accessible in the :attr:`data` attribute.
     .. automethod:: download(force_download=False)
 
     .. automethod:: read
+ 
+.. autoclass:: Unihan
+
+    .. attribute:: data
+        :annotation:
+
+        A dictionary containing the processed source data.
+
+    .. automethod:: download(force_download=False)
+
+    .. automethod:: read
 
 
 Base Data Source Classes

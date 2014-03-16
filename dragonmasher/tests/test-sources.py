@@ -3,6 +3,7 @@
 
 from __future__ import unicode_literals
 import os
+import re
 import sys
 import types
 import unittest
@@ -204,6 +205,12 @@ class SUBTLEXTestCase(unittest.TestCase):
 class FunctionsTestCase(unittest.TestCase):
     """Unit Tests for helper functions."""
 
+    def test_hex_to_chr(self):
+        """Tests that sources.hex_to_chr works correctly."""
+        self.assertEqual('㓨', sources.hex_to_chr('U+34E8'))
+        self.assertEqual('㓨',
+                         re.sub('U\+[A-F0-9]*', sources.hex_to_chr, 'U+34E8'))
+
     def test_trim_list(self):
         """Tests that sources.trim_list works correctly."""
         L1 = [0, 1, 2, 3, 4, 5, 6]
@@ -393,3 +400,35 @@ class LWCWordsTestCase(unittest.TestCase):
         self.assertEqual('33', self.lwc.data['揭露']['LWC-word-id'])
         self.assertEqual('318', self.lwc.data['揭露']['LWC-count'])
         self.assertFalse('LWC-reverse-of-word' in self.lwc.data['揭露'])
+
+
+class UnihanTestCase(unittest.TestCase):
+    """Tests for the Unihan data source class."""
+
+    def __init__(self, *args, **kwargs):
+        """Sets the data_dir attribute."""
+        self.data_dir = os.path.join(os.path.dirname(__file__), 'data')
+        self.data_files = [os.path.join(self.data_dir, f) for f in
+                           ('unihan_variants_test.txt',
+                            'unihan_readings_test.txt')]
+        super(self.__class__, self).__init__(*args, **kwargs)
+
+    def setUp(self):
+        """Reads data file."""
+        self.unihan = sources.Unihan(cache_data=False)
+        self.unihan.files = self.data_files
+
+        def _cleanup():
+            pass
+
+        self.unihan._cleanup = _cleanup
+
+    def test_read(self):
+        """Tests that Unihan's data is read correctly."""
+        self.unihan.read()
+        self.assertEqual(2, len(self.unihan.data))
+        self.assertEqual('cí', self.unihan.data['\u34E8']['UNIHAN-kMandarin'])
+        self.assertEqual('ci3',
+                         self.unihan.data['\u34E8']['UNIHAN-kCantonese'])
+        self.assertEqual('\u523E',
+                         self.unihan.data['\u34E8']['UNIHAN-kSimplifiedVariant'])

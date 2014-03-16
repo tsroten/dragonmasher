@@ -1,0 +1,3 @@
+U+34E8	kCantonese	ci3
+U+34E8	kDefinition	(same as 刺) to pierce; to stab; to irritate; to hurt
+U+34E8	kMandarin	cí

@@ -1,0 +1,2 @@
+U+34E8	kSimplifiedVariant	U+523E
+U+34EE	kSemanticVariant	U+5F6B<kLau,kMatthews U+96D5<kLau,kMatthews
