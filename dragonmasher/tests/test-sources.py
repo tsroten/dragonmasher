@@ -3,11 +3,18 @@
 
 from __future__ import unicode_literals
 import os
+import sys
+import types
 import unittest
 
 from ticktock import TimeoutShelf
 
 from dragonmasher import sources
+
+is_python3 = sys.version_info[0] > 2
+
+if not is_python3:
+    str = unicode
 
 
 class PackageResourceSourceTestCase(unittest.TestCase):
@@ -248,7 +255,7 @@ class CSVMixinTestCase(unittest.TestCase):
         """Tests that CSVMixin.get_rows works correctly."""
         lines = ['A,B,C', 'D,E,F']
         erows = [['A', 'B', 'C'], ['D', 'E', 'F']]
-        rows = self.csvmixin.get_rows(lines, delimiter=',')
+        rows = self.csvmixin.get_rows(lines)
         self.assertEqual(erows, list(rows))
 
     def test_process_file(self):
@@ -260,3 +267,100 @@ class CSVMixinTestCase(unittest.TestCase):
                  'c': {'CSV-Number': '3'}, 'd': {'CSV-Number': '4'}}
         data = self.csvmixin.process_file('foo.txt', contents, exclude=(2,))
         self.assertEqual(edata, data)
+
+
+class CEDICTTestCase(unittest.TestCase):
+    """Tests for the CEDICT data source class."""
+
+    def __init__(self, *args, **kwargs):
+        """Sets the data_dir attribute."""
+        self.data_dir = os.path.join(os.path.dirname(__file__), 'data')
+        self.data_file = os.path.join(self.data_dir, 'cedict_test.txt')
+        super(CEDICTTestCase, self).__init__(*args, **kwargs)
+
+    def setUp(self):
+        """Reads data file."""
+        self.cedict = sources.CEDICT(cache_data=False)
+        self.cedict.files = (self.data_file,)
+        self.cedict.whitelist = ('cedict_test.txt',)
+
+        def _cleanup():
+            pass
+
+        self.cedict._cleanup = _cleanup
+
+    def test_get_rows(self):
+        """Tests that CEDICT.get_rows works correctly."""
+        contents = ('钃 钃 [shu3] /metal/\n'
+                    '長 长 [chang2] /length/long/forever/always/constantly/\n')
+        rows = self.cedict.get_rows(contents.splitlines())
+        self.assertTrue(isinstance(rows, types.GeneratorType))
+        rows_list = list(rows)
+        self.assertEqual(2, len(rows_list))
+        self.assertEqual(['钃', '钃', 'shu3', 'metal'], rows_list[0])
+        self.assertEqual(['長', '长', 'chang2',
+                          'length/long/forever/always/constantly'],
+                         rows_list[1])
+
+    def test_cedict_process_row(self):
+        """Tests that CEDICT.process_row works correctly."""
+        row = ['長', '长', 'chang2', 'length/long/forever/always/constantly']
+        prow = self.cedict.process_row(row, ('#',))
+        self.assertTrue(isinstance(prow[3], list))
+
+        row = ['#foo', 'bar', 'bar', 'bar']
+        prow = self.cedict.process_row(row, ('#',))
+        self.assertEqual(None, prow)
+
+    def test_cedict_read(self):
+        """Tests that CEDICT processes the data correctly."""
+        self.cedict.read()
+        self.assertEqual(3, len(self.cedict.data))
+        self.assertEqual('shu3', self.cedict.data['钃']['CEDICT-pinyin'])
+        self.assertEqual('长', self.cedict.data['長']['CEDICT-simplified'])
+        self.assertTrue(isinstance(self.cedict.data['長']['CEDICT-pinyin'],
+                                   list))
+        self.assertTrue(isinstance(self.cedict.data['長']['CEDICT-definition'],
+                                   list))
+        self.assertTrue(isinstance(self.cedict.data['钃']['CEDICT-pinyin'],
+                                   str))
+        self.assertTrue(isinstance(self.cedict.data['钃']['CEDICT-definition'],
+                                   list))
+
+
+class BaseJunDaTestCase(unittest.TestCase):
+    """Tests for the BaseJunDa data source class."""
+
+    def __init__(self, *args, **kwargs):
+        """Sets the data_dir attribute."""
+        self.data_dir = os.path.join(os.path.dirname(__file__), 'data')
+        self.data_file = os.path.join(self.data_dir, 'junda_test.txt')
+        super(BaseJunDaTestCase, self).__init__(*args, **kwargs)
+
+    def setUp(self):
+        """Reads data file."""
+        self.junda = sources.BaseJunDa('IM', cache_data=False)
+        self.junda.files = (self.data_file,)
+        self.junda.whitelist = ('junda_test.txt',)
+
+        def _cleanup():
+            pass
+
+        self.junda._cleanup = _cleanup
+
+    def test_init(self):
+        """Tests that the BaseJunDa.__init__ function works as expected."""
+        download_url = ('http://lingua.mtsu.edu/chinese-computing/statistics'
+                        '/char/download.php?Which=IM')
+        self.assertEqual(download_url, self.junda.download_url)
+        self.assertEqual('JUNDA-IM', self.junda.name)
+
+    def test_read(self):
+        """Tests that JunDa's data is read correctly."""
+        self.junda.read()
+        self.assertEqual(5, len(self.junda.data))
+        self.assertEqual('1', self.junda.data['的']['JUNDA-IM-number'])
+        self.assertEqual('7.18753757539',
+                         self.junda.data['了']['JUNDA-IM-percentile'])
+        self.assertFalse('JUNDA-IM-pinyin' in self.junda.data['了'])
+        self.assertFalse('JUNDA-IM-definition' in self.junda.data['了'])

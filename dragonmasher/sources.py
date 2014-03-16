@@ -900,8 +900,7 @@ class JunDaCombinedCharacterList(BaseJunDa):
 class CEDICT(CSVMixin, BaseRemoteArchiveSource):
     """Fetches and processes the CC-CEDICT dictionary data.
 
-    See parent classes :class:`BaseRemoteArchiveSource` and :class:`CSVMixin`
-    for more information.
+    See parent class :class:`BaseRemoteArchiveSource` for more information.
 
     :param bool cache_data: Whether or not to cache the processed data.
     :param str cache_name: The cache's name.
@@ -944,32 +943,37 @@ class CEDICT(CSVMixin, BaseRemoteArchiveSource):
         logger.debug("Processing file: '%s'." % filename)
         data = {}
         headers = list(self.headers)
-        for line in contents.splitlines():
-            if line.startswith('#'):
-                continue  # Skip all comments.
-            sline = self.split_line(line)
-            if sline is None:
-                # Skip lines that split_line() couldn't parse.
-                logger.warning("Skipping line: '%s'." % line)
+        rows = self.get_rows(contents.splitlines())
+        for row in rows:
+            if len(row) != 4:
+                logger.warning("Skipping line: '%s'." % row)
                 continue
-            row = self.process_row(sline)
-            value = dict(zip([self.key_prefix + h for h in headers], row))
-            for key in set(row[0:2]):
-                # Create an entry for Simplified and Traditional (if they
-                # differ).
-                self.update(data, {key: value})
+            prow = self.process_row(row, comments=('#',))
+            if prow is None:
+                # Skip lines that process_row couldn't parse or are comments.
+                logger.warning("Skipping row: '%s'." % row)
+                continue
+            value = dict(zip([self.key_prefix + h for h in headers], prow))
+            update_dict(data, {prow[0]: value})
+            if prow[0] != prow[1]:
+                # Add Simplified if it differs from Traditional.
+                update_dict(data, {prow[1]: value})
         return data
 
-    def process_row(self, row):
+    def get_rows(self, lines):
+        for line in lines:
+            m = re.match('^(?P<t>.+) (?P<s>.+) \[(?P<p>.+)\] /(?P<d>.+)/$',
+                         line)
+            if m is None:
+                logger.warning("Unable to parse line: '%s'." % line)
+                yield [line]
+                continue
+            t, s, p, d = m.group('t'), m.group('s'), m.group('p'), m.group('d')
+            yield [t, s, p, d]
+
+    def process_row(self, row, comments):
         """Processes the fields in *row*."""
+        if row[0][0] in comments:
+            return None
         row[3] = row[3].split('/')
         return row
-
-    def split_line(self, line):
-        """Splits *line* into a list of fields."""
-        m = re.match('^(?P<t>.+) (?P<s>.+) \[(?P<p>.+)\] /(?P<d>.+)/$', line)
-        if m is None:
-            logger.warning("Unable to parse line: '%s'." % line)
-            return None
-        t, s, p, d = m.group('t'), m.group('s'), m.group('p'), m.group('d')
-        return [t, s, p, d]
