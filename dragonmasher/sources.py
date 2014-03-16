@@ -29,6 +29,7 @@ from ticktock import TimeoutShelf
 import zhon.hanzi
 
 from dragonmasher.unpack import unpack_archive
+from dragonmasher.utils import hex_to_chr, trim_list, update_dict
 
 logger = logging.getLogger(__name__)
 
@@ -36,63 +37,6 @@ PACKAGE = __name__.rpartition('.')[0]
 
 #: The default timeout value for cached data (in seconds).
 DEFAULT_TIMEOUT = 12096000
-
-
-def hex_to_chr(h):
-    """Covert strings like 'U+4E5D' to corresponding Unicode characters.
-
-    This function also works with regular expression match objects.
-
-    """
-    if hasattr(h, 'group'):
-        h = h.group()
-    ordinal = int(h.strip('U+'), 16)
-    return chr(ordinal) if is_python3 else unichr(ordinal)
-
-
-def trim_list(L, excluded):
-    """Removes unwanted itmes from a list."""
-    return [item for i, item in enumerate(L) if i not in excluded]
-
-
-def update_dict(d, other, allow_duplicates=False):
-    """Updates a dict *d* with the key/value pairs from *other*.
-
-    *d* and *other* are dictionaries that contain dictionaries. It is the
-    second layer of dictionaries that are updated.
-
-    Existing keys are not overwritten, but instead their values are
-    converted to a list and the new value is appended. Duplicate values are
-    ignored (if *allow_duplicates* is ``False``).
-
-    :param dict d: A base dictionary that should be updated.
-    :param dict other: A dictionary whose key/value pairs should be added
-        to *d*.
-    :param bool allow_duplicates: Whether or not to add duplicate values to
-        *d*.
-
-    """
-    for key, value in other.items():
-        d.setdefault(key, {})
-        overlap = bool(set(list(d[key])).intersection(set(list(value))))
-        if not overlap:
-            if isinstance(value, dict):
-                d[key].update(value)
-            else:
-                d[key] = value
-            continue
-        for k, v in value.items():
-            if k not in d[key]:
-                d[key][k] = v
-                break
-            dvalue = d[key][k]
-            if (((isinstance(dvalue, list) and v in dvalue) or
-                    (isinstance(dvalue, str) and v == dvalue)) and
-                    allow_duplicates is False):
-                continue
-            elif not isinstance(dvalue, list):
-                d[key][k] = [dvalue]
-            d[key][k].append(v)
 
 
 class BaseSource(object):
