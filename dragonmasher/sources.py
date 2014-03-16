@@ -26,6 +26,7 @@ else:
 
 from fcache.cache import FileCache
 from ticktock import TimeoutShelf
+import zhon.hanzi
 
 from dragonmasher.unpack import unpack_archive
 
@@ -976,4 +977,86 @@ class CEDICT(CSVMixin, BaseRemoteArchiveSource):
         if row[0][0] in comments:
             return None
         row[3] = row[3].split('/')
+        return row
+
+
+class LWCWords(CSVMixin, BaseRemoteArchiveSource):
+    """Fetches and processes the LWC words data.
+
+    See parent class :class:`BaseRemoteArchiveSource` for more information.
+
+    :param bool cache_data: Whether or not to cache the processed data.
+    :param str cache_name: The cache's name.
+    :param int timeout: How long in seconds until the cached data expires).
+
+    """
+
+    #: The URL for this data source.
+    download_url = 'http://lwc.daanvanesch.nl/download.php?file=words'
+
+    #: A tuple containing the CSV file's header.
+    headers = ('word-id', 'word', 'reverse-of-word', 'count')
+
+    #: The column number to use as a dictionary key when processing the data
+    #: (counting from zero).
+    index_column = 1
+
+    #: A unique name/abbreviation for this source.
+    name = 'LWC'
+
+    #: A tuple containing names of files that should be processed. If empty,
+    #: then all extracted files are processed.
+    whitelist = (
+        'words_types.txt',
+    )
+
+    def __init__(self, cache_data=True, cache_name='dragonmasher',
+                 timeout=DEFAULT_TIMEOUT):
+        super(self.__class__, self).__init__(cache_data=cache_data,
+                                             cache_name=cache_name,
+                                             timeout=timeout,
+                                             encoding='utf-8')
+
+    def download(self, force_download=False):
+        """Downloads the LWC words file and saves it to a temporary directory.
+
+        The temporary directory's path is accessible through the
+        :attr:`temp_dir` attribute.
+
+        After downloading the source archive, the contents are then extracted.
+        The attribute :attr:`files` is set to a tuple containing the absolute
+        filenames of the files extracted.
+
+        If *force_download* is ``True``, then downloaded files and cached data
+        will be deleted and the source data will be downloaded again. If
+        *force_download* is ``False``, then the download will be cancelled if
+        the files have already been downloaded or the processed data has been
+        cached.
+
+        :param bool force_download: Whether or not to download the source files
+            even if the data is cached.
+
+        """
+        super(self.__class__, self).download(force_download=force_download,
+                                             filename='LWC-words.zip')
+
+    def process_file(self, filename, contents):
+        """Processes the LWC words file.
+
+        :param str filename: The filename of the file to be processed.
+        :param str contents: The contents to be processed.
+        :return: The processed data.
+        :rtype: :class:`dict`
+
+        """
+        return super(self.__class__, self).process_file(filename, contents,
+                                                        exclude=(2,))
+
+    def process_row(self, row, comments):
+        """Processes the fields in *row*."""
+        if row[0][0] in comments:
+            return None
+        if not re.search('[%s]' % zhon.hanzi.cjk_ideographs, row[1]):
+            # Skip words that don't have Chinese characters.
+            return None
         return row

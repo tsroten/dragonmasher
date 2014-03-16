@@ -364,3 +364,32 @@ class BaseJunDaTestCase(unittest.TestCase):
                          self.junda.data['了']['JUNDA-IM-percentile'])
         self.assertFalse('JUNDA-IM-pinyin' in self.junda.data['了'])
         self.assertFalse('JUNDA-IM-definition' in self.junda.data['了'])
+
+
+class LWCWordsTestCase(unittest.TestCase):
+    """Tests for the LWC words data source class."""
+
+    def __init__(self, *args, **kwargs):
+        """Sets the data_dir attribute."""
+        self.data_dir = os.path.join(os.path.dirname(__file__), 'data')
+        self.data_file = os.path.join(self.data_dir, 'lwc_words_test.txt')
+        super(self.__class__, self).__init__(*args, **kwargs)
+
+    def setUp(self):
+        """Reads data file."""
+        self.lwc = sources.LWCWords(cache_data=False)
+        self.lwc.files = (self.data_file,)
+        self.lwc.whitelist = ('lwc_words_test.txt',)
+
+        def _cleanup():
+            pass
+
+        self.lwc._cleanup = _cleanup
+
+    def test_read(self):
+        """Tests that LWCWords' data is read correctly."""
+        self.lwc.read()
+        self.assertEqual(1, len(self.lwc.data))
+        self.assertEqual('33', self.lwc.data['揭露']['LWC-word-id'])
+        self.assertEqual('318', self.lwc.data['揭露']['LWC-count'])
+        self.assertFalse('LWC-reverse-of-word' in self.lwc.data['揭露'])
