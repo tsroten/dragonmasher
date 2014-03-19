@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Utility functions for dragonmasher."""
 
 from __future__ import unicode_literals
@@ -42,8 +43,8 @@ def update_dict(d, other, allow_duplicates=False, annotate=False):
     :param bool allow_duplicates: Whether or not to add duplicate values to
         *d*.
     :param bool annotate: Whether or not to ignore keys present in *other* that
-        aren't present in *d*. In other words, if ``True``, *other*'s values are
-        used to annotate *d*'s existing values.
+        aren't present in *d*. In other words, if ``True``, *other*'s values
+        are used to annotate *d*'s existing values.
 
     """
     for key, value in other.items():
@@ -57,10 +58,19 @@ def update_dict(d, other, allow_duplicates=False, annotate=False):
             else:
                 d[key] = value
             continue
+        if ('CEDICT-simplified' in value and (value['CEDICT-simplified'] == '当当'
+                                              or value['CEDICT-traditional'] == '當當' or
+                                              value['CEDICT-traditional'] ==
+                                              '噹噹' or
+                                              '(onom.) ding dong' in
+                                              value['CEDICT-definition'])):
+            if 'CEDICT-definition' in d[key]:
+                print("\n\ncur definition: %s\n\n" % d[key]['CEDICT-definition'])
+            print("\n\nnew definition: %s\n\n" % value['CEDICT-definition'])
         for k, v in value.items():
             if k not in d[key]:
                 d[key][k] = v
-                break
+                continue
             dvalue = d[key][k]
             if (((isinstance(dvalue, list) and v in dvalue) or
                     (isinstance(dvalue, str) and v == dvalue)) and
@@ -68,4 +78,12 @@ def update_dict(d, other, allow_duplicates=False, annotate=False):
                 continue
             elif not isinstance(dvalue, list):
                 d[key][k] = [dvalue]
-            d[key][k].append(v)
+            if isinstance(v, list):
+                d[key][k].extend(v)
+            else:
+                d[key][k].append(v)
+        if ('CEDICT-simplified' in value and (value['CEDICT-simplified'] == '当当'
+                                              or value['CEDICT-traditional'] == '當當' or
+                                              value['CEDICT-traditional'] == '噹噹')):
+            if 'CEDICT-definition' in d[key]:
+                print("\n\nupdated definition: %s\n\n" % d[key]['CEDICT-definition'])
