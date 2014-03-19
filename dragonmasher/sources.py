@@ -945,7 +945,7 @@ class CEDICT(CSVMixin, BaseRemoteArchiveSource):
         """Processes the fields in *row*."""
         if row[0][0] in comments:
             return None
-        row[3] = row[3].split('/')
+        row[3] = [row[3].split('/')]
         return row
 
 
