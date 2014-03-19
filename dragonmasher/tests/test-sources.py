@@ -3,6 +3,7 @@
 
 from __future__ import unicode_literals
 import os
+import shutil
 import sys
 import types
 import unittest
@@ -80,7 +81,7 @@ class BaseRemoteSourceTestCase(unittest.TestCase):
     def tearDown(self):
         """Deletes cache files and temporary files."""
         if self.source.cache_data:
-            self.source.cache.dict.delete()
+            shutil.rmtree(os.path.dirname(self.source.cache.dict.cache_dir))
         if self.source.temp_dir is not None:
             self.source._cleanup()
 
@@ -161,7 +162,7 @@ class BaseRemoteArchiveSourceTestCase(unittest.TestCase):
     def tearDown(self):
         """Deletes cache files and temporary files."""
         if self.source.cache_data:
-            self.source.cache.dict.delete()
+            shutil.rmtree(os.path.dirname(self.source.cache.dict.cache_dir))
         if hasattr(self.source, 'temp_dir'):
             self.source._cleanup()
 
@@ -388,5 +389,5 @@ class UnihanTestCase(unittest.TestCase):
         self.assertEqual('cí', self.unihan.data['\u34E8']['UNIHAN-kMandarin'])
         self.assertEqual('ci3',
                          self.unihan.data['\u34E8']['UNIHAN-kCantonese'])
-        self.assertEqual('\u523E',
-                         self.unihan.data['\u34E8']['UNIHAN-kSimplifiedVariant'])
+        self.assertEqual(
+            '\u523E', self.unihan.data['\u34E8']['UNIHAN-kSimplifiedVariant'])
