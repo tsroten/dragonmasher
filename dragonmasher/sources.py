@@ -38,17 +38,6 @@ PACKAGE = __name__.rpartition('.')[0]
 #: The default timeout value for cached data (in seconds).
 DEFAULT_TIMEOUT = 12096000
 
-CACHE = None
-
-
-def _init_cache(cache_name, timeout):
-    """Opens a cache for the processed source data."""
-    global CACHE
-    if CACHE is None:
-        cache = FileCache(cache_name, serialize=False)
-        CACHE = TimeoutShelf(cache, writeback=True, timeout=timeout)
-    return CACHE
-
 
 class BaseSource(object):
     """Base class for Chinese data sources."""
@@ -191,17 +180,19 @@ class BaseRemoteSource(BaseSource):
         self.temp_dir = None
 
         if self.cache_data:
-            self._init_cache('dragonmasher', timeout)
+            self._init_cache('dragonmasher.%s' % self.name, timeout)
 
         super(BaseRemoteSource, self).__init__(encoding=encoding)
 
     def _init_cache(self, cache_name, timeout):
         """Opens a cache for the processed source data."""
-        self.cache = _init_cache(cache_name, timeout)
+        fcache = FileCache(cache_name, serialize=False)
+        self.cache = TimeoutShelf(fcache, writeback=True, timeout=timeout)
         self.data = self.cache.setdefault(self.name, {})
 
     def _reset_cache(self):
         """Deletes the cached data."""
+        del self.data
         del self.cache[self.name]
         self.cache.sync()
         self.data = self.cache.setdefault(self.name, {})
