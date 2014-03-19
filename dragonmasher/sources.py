@@ -944,6 +944,7 @@ class CEDICT(CSVMixin, BaseRemoteArchiveSource):
     def process_row(self, row, comments):
         """Processes the fields in *row*."""
         if row[0][0] in comments:
+            logger.info("Skipping comment: '%s'." % row[0])
             return None
         row[3] = [row[3].split('/')]
         return row
