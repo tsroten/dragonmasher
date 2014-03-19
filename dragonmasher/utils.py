@@ -58,15 +58,6 @@ def update_dict(d, other, allow_duplicates=False, annotate=False):
             else:
                 d[key] = value
             continue
-        if ('CEDICT-simplified' in value and (value['CEDICT-simplified'] == '当当'
-                                              or value['CEDICT-traditional'] == '當當' or
-                                              value['CEDICT-traditional'] ==
-                                              '噹噹' or
-                                              '(onom.) ding dong' in
-                                              value['CEDICT-definition'])):
-            if 'CEDICT-definition' in d[key]:
-                print("\n\ncur definition: %s\n\n" % d[key]['CEDICT-definition'])
-            print("\n\nnew definition: %s\n\n" % value['CEDICT-definition'])
         for k, v in value.items():
             if k not in d[key]:
                 d[key][k] = v
@@ -82,8 +73,3 @@ def update_dict(d, other, allow_duplicates=False, annotate=False):
                 d[key][k].extend(v)
             else:
                 d[key][k].append(v)
-        if ('CEDICT-simplified' in value and (value['CEDICT-simplified'] == '当当'
-                                              or value['CEDICT-traditional'] == '當當' or
-                                              value['CEDICT-traditional'] == '噹噹')):
-            if 'CEDICT-definition' in d[key]:
-                print("\n\nupdated definition: %s\n\n" % d[key]['CEDICT-definition'])
