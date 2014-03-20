@@ -1002,7 +1002,7 @@ class LWCWords(CSVMixin, BaseRemoteArchiveSource):
                                              filename='LWC-words.zip')
 
     def process_file(self, filename, contents):
-        """Processes the LWC words file.
+        """Processes a CSV file's contents.
 
         :param str filename: The filename of the file to be processed.
         :param str contents: The contents to be processed.
@@ -1010,8 +1010,35 @@ class LWCWords(CSVMixin, BaseRemoteArchiveSource):
         :rtype: :class:`dict`
 
         """
-        return super(self.__class__, self).process_file(filename, contents,
-                                                        exclude=(2,))
+        delimiter = ','
+        exclude = (2,)
+        comments = ('#',)
+        logger.debug("Processing file: '%s'." % filename)
+        excluded_columns = exclude + (self.index_column,)
+        data = {}
+        headers = trim_list(self.headers, excluded_columns)
+        if is_python2:
+            contents = contents.encode('utf-8')
+        rows = self.get_rows(contents.splitlines(), delimiter=delimiter)
+        prows = []
+        for row in rows:
+            prow = self.process_row(row, comments)
+            if prow is None:
+                logger.debug("Skipping row: '%s'" % row)
+                continue
+            prows.append(prow)
+        del contents
+        del rows
+        prows.sort(key=lambda x: int(x[3]), reverse=True)
+        headers.append('number')
+        for n, prow in enumerate(prows, start=1):
+            key = prow[self.index_column]
+            trow = trim_list(prow, excluded_columns)
+            trow.append(str(n))
+            value = dict(zip([self.key_prefix + h for h in headers], trow))
+            update_dict(data, {key: value})
+        del prows
+        return data
 
     def process_row(self, row, comments):
         """Processes the fields in *row*."""

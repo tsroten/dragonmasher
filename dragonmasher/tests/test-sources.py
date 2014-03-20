@@ -358,6 +358,7 @@ class LWCWordsTestCase(unittest.TestCase):
         self.assertEqual(1, len(self.lwc.data))
         self.assertEqual('33', self.lwc.data['揭露']['LWC-word-id'])
         self.assertEqual('318', self.lwc.data['揭露']['LWC-count'])
+        self.assertEqual('1', self.lwc.data['揭露']['LWC-number'])
         self.assertFalse('LWC-reverse-of-word' in self.lwc.data['揭露'])
 
 
