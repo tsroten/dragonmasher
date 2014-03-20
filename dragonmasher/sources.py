@@ -607,10 +607,35 @@ class SUBTLEX(CSVMixin, BaseRemoteArchiveSource):
         :rtype: :class:`dict`
 
         """
-        return super(SUBTLEX, self).process_file(filename, contents,
-                                                 delimiter='\t',
-                                                 comments=('W',),
-                                                 exclude=(14,))
+        delimiter = '\t'
+        exclude = (14,)
+        comments = ('\ufeff', 'W',)
+        logger.debug("Processing file: '%s'." % filename)
+        excluded_columns = exclude + (self.index_column,)
+        data = {}
+        headers = trim_list(self.headers, excluded_columns)
+        if is_python2:
+            contents = contents.encode('utf-8')
+        rows = self.get_rows(contents.splitlines(), delimiter=delimiter)
+        prows = []
+        for row in rows:
+            prow = self.process_row(row, comments)
+            if prow is None:
+                logger.debug("Skipping row: '%s'" % row)
+                continue
+            prows.append(prow)
+        del contents
+        del rows
+        prows.sort(key=lambda x: int(x[4]), reverse=True)
+        headers.append('number')
+        for n, prow in enumerate(prows, start=1):
+            key = prow[self.index_column]
+            trow = trim_list(prow, excluded_columns)
+            trow.append(str(n))
+            value = dict(zip([self.key_prefix + h for h in headers], trow))
+            update_dict(data, {key: value})
+        del prows
+        return data
 
     def read(self):
         """Reads and processes the downloaded SUBTLEX-CH files.
@@ -621,6 +646,12 @@ class SUBTLEX(CSVMixin, BaseRemoteArchiveSource):
 
         """
         super(SUBTLEX, self).read()
+
+    def process_row(self, row, comments):
+        """Processes the fields in *row*."""
+        if row[0][0] in comments:
+            return None
+        return row
 
 
 class BaseJunDa(CSVMixin, BaseRemoteSource):

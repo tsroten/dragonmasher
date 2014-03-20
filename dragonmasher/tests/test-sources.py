@@ -200,6 +200,7 @@ class SUBTLEXTestCase(unittest.TestCase):
         self.subtlex.read()
         self.assertEqual(4, len(self.subtlex.data))
         self.assertEqual('1', self.subtlex.data['的']['SUBTLEX-length'])
+        self.assertEqual('1', self.subtlex.data['的']['SUBTLEX-number'])
 
 
 class CSVMixinTestCase(unittest.TestCase):
