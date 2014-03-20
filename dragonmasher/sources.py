@@ -332,7 +332,7 @@ class BaseRemoteArchiveSource(BaseRemoteSource):
         """
         super(BaseRemoteArchiveSource, self).download(force_download, filename)
         if self.has_data and not force_download:
-            return self
+            return
         self.extract()
 
     def extract(self):
