@@ -273,6 +273,7 @@ class CEDICTTestCase(unittest.TestCase):
         """Tests that CEDICT.process_row works correctly."""
         row = ['長', '长', 'chang2', 'length/long/forever/always/constantly']
         prow = self.cedict.process_row(row, ('#',))
+        self.assertEqual('cháng', prow[2])
         self.assertTrue(isinstance(prow[3], list))
 
         row = ['#foo', 'bar', 'bar', 'bar']
@@ -283,7 +284,7 @@ class CEDICTTestCase(unittest.TestCase):
         """Tests that CEDICT processes the data correctly."""
         self.cedict.read()
         self.assertEqual(3, len(self.cedict.data))
-        self.assertEqual('shu3', self.cedict.data['钃']['CEDICT-pinyin'])
+        self.assertEqual('shǔ', self.cedict.data['钃']['CEDICT-pinyin'])
         self.assertEqual('长', self.cedict.data['長']['CEDICT-simplified'])
         self.assertTrue(isinstance(self.cedict.data['長']['CEDICT-pinyin'],
                                    list))

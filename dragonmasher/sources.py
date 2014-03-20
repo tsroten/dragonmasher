@@ -24,6 +24,7 @@ else:
 
     str = unicode
 
+from dragonmapper import transcriptions
 from fcache.cache import FileCache
 from ticktock import TimeoutShelf
 import zhon.hanzi
@@ -968,6 +969,8 @@ class CEDICT(CSVMixin, BaseRemoteArchiveSource):
         if row[0][0] in comments:
             logger.info("Skipping comment: '%s'." % row[0])
             return None
+        pinyin = row[2].replace(' ', '')
+        row[2] = transcriptions.numbered_to_accented(pinyin)
         row[3] = [row[3].split('/')]
         return row
 
@@ -1159,7 +1162,7 @@ class Unihan(CSVMixin, BaseRemoteArchiveSource):
 
     def process_row(self, row, comments):
         """Processes the fields in *row*."""
-        if row[0][0] in comments or not row:
+        if not row or row[0][0] in comments:
             return None
         row[0] = hex_to_chr(row[0][2:])
         if 'U+' in row[-1]:
