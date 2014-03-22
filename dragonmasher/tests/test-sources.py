@@ -284,16 +284,8 @@ class CEDICTTestCase(unittest.TestCase):
         """Tests that CEDICT processes the data correctly."""
         self.cedict.read()
         self.assertEqual(3, len(self.cedict.data))
-        self.assertEqual('shǔ', self.cedict.data['钃']['CEDICT-pinyin'])
-        self.assertEqual('长', self.cedict.data['長']['CEDICT-simplified'])
-        self.assertTrue(isinstance(self.cedict.data['長']['CEDICT-pinyin'],
-                                   list))
-        self.assertTrue(isinstance(self.cedict.data['長']['CEDICT-definition'],
-                                   list))
-        self.assertTrue(isinstance(self.cedict.data['钃']['CEDICT-pinyin'],
-                                   str))
-        self.assertTrue(isinstance(self.cedict.data['钃']['CEDICT-definition'],
-                                   list))
+        self.assertEqual('shǔ', self.cedict.data['钃']['CEDICT-entry'][0][2])
+        self.assertEqual('长', self.cedict.data['長']['CEDICT-entry'][0][1])
 
 
 class BaseJunDaTestCase(unittest.TestCase):

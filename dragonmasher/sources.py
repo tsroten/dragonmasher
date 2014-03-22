@@ -935,7 +935,6 @@ class CEDICT(CSVMixin, BaseRemoteArchiveSource):
         """
         logger.debug("Processing file: '%s'." % filename)
         data = {}
-        headers = list(self.headers)
         rows = self.get_rows(contents.splitlines())
         for row in rows:
             if len(row) != 4:
@@ -946,7 +945,7 @@ class CEDICT(CSVMixin, BaseRemoteArchiveSource):
                 # Skip lines that process_row couldn't parse or are comments.
                 logger.warning("Skipping row: '%s'." % row)
                 continue
-            value = dict(zip([self.key_prefix + h for h in headers], prow))
+            value = {self.key_prefix + 'entry': [prow]}
             update_dict(data, {prow[0]: value})
             if prow[0] != prow[1]:
                 # Add Simplified if it differs from Traditional.
@@ -969,9 +968,21 @@ class CEDICT(CSVMixin, BaseRemoteArchiveSource):
         if row[0][0] in comments:
             logger.info("Skipping comment: '%s'." % row[0])
             return None
-        pinyin = row[2].replace(' ', '')
-        row[2] = transcriptions.numbered_to_accented(pinyin)
-        row[3] = [row[3].split('/')]
+        pinyin_re = re.compile('(?:[a-zA-Z]+[1-5](?: (?=[a-zA-Z]+[1-5]))?)+')
+        row[2] = row[2].replace('u:', 'v')
+        if ' ' in row[2]:
+            for p in pinyin_re.findall(row[2]):
+                row[2] = row[2].replace(p, p.replace(' ', ''))
+        row[2] = transcriptions.numbered_to_accented(row[2])
+        if '[' in row[3]:
+            for pinyin in re.findall('\[[A-Za-z1-5 ]+\]', row[3]):
+                npinyin = pinyin
+                if ' ' in pinyin:
+                    for p in pinyin_re.findall(pinyin):
+                        npinyin = npinyin.replace(p, p.replace(' ', ''))
+                npinyin = transcriptions.numbered_to_accented(npinyin)
+                row[3] = row[3].replace(pinyin, npinyin)
+        row[3] = row[3].split('/')
         return row
 
 
