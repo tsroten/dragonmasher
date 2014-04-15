@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Chinese data source classes and methods."""
 
+from __future__ import unicode_literals
 import contextlib
 import logging
 import os
@@ -21,8 +22,6 @@ else:
     from urllib2 import urlopen
 
     from . import unicodecsv as csv
-
-    str = unicode
 
 from dragonmapper import transcriptions
 from fcache.cache import FileCache
@@ -434,6 +433,8 @@ class CSVMixin(object):
         return data
 
     def get_rows(self, csvfile, delimiter=','):
+        if is_python2 and not isinstance(delimiter, str):
+            delimiter = delimiter.encode('utf-8')
         return csv.reader(csvfile, delimiter=delimiter)
 
     def process_row(self, row, comments):
