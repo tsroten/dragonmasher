@@ -3,6 +3,11 @@ Dragon Masher
 
 Dragon Masher provides access to Chinese word/character data.
 
+.. NOTE::
+
+    Dragon Masher is under development. I haven't published a release yet,
+    so use with caution.
+
 It is a Python library that helps you create customizable Chinese
 language data. Dragon Masher currently supports the following
 data sources:
