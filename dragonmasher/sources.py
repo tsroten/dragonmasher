@@ -1143,8 +1143,7 @@ class Unihan(CSVMixin, BaseRemoteArchiveSource):
             even if the data is cached.
 
         """
-        super(self.__class__, self).download(force_download=force_download,
-                                             filename='LWC-words.zip')
+        super(self.__class__, self).download(force_download=force_download)
 
     def process_file(self, filename, contents):
         """Processes a Unihan data file.
