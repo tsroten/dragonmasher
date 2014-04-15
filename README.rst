@@ -3,25 +3,30 @@ Dragon Masher
 
 Dragon Masher provides access to Chinese word/character data.
 
-It is a command-line tool and Python library that creates customizable Chinese
-language data for your needs. Dragon Masher currently supports the following
+It is a Python library that helps you create customizable Chinese
+language data. Dragon Masher currently supports the following
 data sources:
 
 * CC-CEDICT
 * HSK vocabulary list
 * TOCFL vocabulary list
 * Unihan
-* SUBTLEX-CH word and character frequency data
+* SUBTLEX-CH word frequency data
 * Leiden Weibo Corpus word frequency data
 * Jun Da character frequency data
-* CJK Decomposition Data
 * 《现代汉语常用字表》(Modern Chinese Commonly-used Characters)
 
-Future features:
+Planned features:
+* Command-line interface
 * Zhuyin (Bopomofo) support
+* SUBTLEX-CH character frequency data
+* CJK Decomposition Data
 * HanDeDict
 * CFDICT
 * CC-ChEDICC
+ 
+You can also easily create your own classes for local or remote data sources
+that aren't listed above.
 
 Documentation
 -------------
