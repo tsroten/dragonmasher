@@ -20,6 +20,7 @@ data sources:
 * 《现代汉语常用字表》(Modern Chinese Commonly-used Characters)
 
 Planned features:
+
 * Command-line interface
 * Zhuyin (Bopomofo) support
 * SUBTLEX-CH character frequency data
