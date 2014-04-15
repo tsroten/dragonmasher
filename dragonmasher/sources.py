@@ -181,7 +181,7 @@ class BaseRemoteSource(BaseSource):
         self.temp_dir = None
 
         if self.cache_data:
-            self._init_cache('dragonmasher.%s' % self.name, timeout)
+            self._init_cache('%s.%s' % (cache_name, self.name), timeout)
 
         super(BaseRemoteSource, self).__init__(encoding=encoding)
 
