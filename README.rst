@@ -35,12 +35,12 @@ that aren't listed above.
 Documentation
 -------------
 
-Dragon Masher includes complete and easy-to-read `documentation <https://dragonmasher.readthedocs.org/>`_. Check it out for a gentle introduction or the full API details.
+Dragon Masher includes complete and easy-to-read `documentation <https://dragon-masher.readthedocs.org/>`_. Check it out for a gentle introduction or the full API details.
 
 Bug/Issues Tracker
 ------------------
 
-Dragon Masher uses its `GitHub Issues page <https://github.com/tsroten/dragonpost/issues`_ to track bugs, feature requests, and support questions.
+Dragon Masher uses its `GitHub Issues page <https://github.com/tsroten/dragonpost/issues>`_ to track bugs, feature requests, and support questions.
 
 License
 -------
